@@ -1,3 +1,12 @@
+import torch
+from torch import nn
+from torch.nn import functional as F
+from torch.utils.data import DataLoader
+from torch.utils.data import random_split
+from torchvision import transforms
+import pytorch_lightning as pl
+import open3d.ml.torch as ml3d
+
 from models.cconv import CConvModel
 from datasets.vtk_dataset import VtkDataset
 
@@ -5,9 +14,9 @@ from datasets.vtk_dataset import VtkDataset
 # data
 dataset = {
     # Care: there probably is almost no generalization with all datasets being this similar
-    "train": VtkDataset("dambreak_2d_test/ParticleData_Fluid_10.vtk"),
-    "eval": VtkDataset("dambreak_2d_test/ParticleData_Fluid_11.vtk"),
-    "test": VtkDataset("dambreak_2d_test/ParticleData_Fluid_12.vtk")
+    "train": VtkDataset("./datasets/data/ParticleData_Fluid_13.vtk"),
+    "eval": VtkDataset("./datasets/data/ParticleData_Fluid_14.vtk"),
+    "test": VtkDataset("./datasets/data/ParticleData_Fluid_14.vtk")
 }
 
 
@@ -18,9 +27,11 @@ val_loader = DataLoader(dataset["eval"], batch_size=32)
 model = CConvModel()
 
 # training
-trainer = pl.Trainer(gpus=4, num_nodes=8, precision=16, limit_train_batches=0.5)
-trainer.fit(model, train_loader, val_loader)
+trainer = pl.Trainer(num_nodes=1, precision=16, limit_train_batches=0.5, max_epochs=10)
 
+print("Starting training")
+trainer.fit(model, train_loader, val_loader)
+print("Finished training")
 
 # Todo: Tensorboard hook
 # Batching
