@@ -27,7 +27,7 @@ val_loader = DataLoader(dataset["eval"], batch_size=32)
 model = CConvModel()
 
 # training
-trainer = pl.Trainer(num_nodes=1, precision=16, limit_train_batches=0.5, max_epochs=10)
+trainer = pl.Trainer(num_nodes=1, precision=16, limit_train_batches=0.5, max_epochs=20, log_every_n_steps=1)
 
 print("Starting training")
 trainer.fit(model, train_loader, val_loader)
