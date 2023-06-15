@@ -105,3 +105,13 @@ def fig_to_tensor(fig):
     image = Image.open(io.BytesIO(bytes_image))
     image = transforms.ToTensor()(image)
     return image
+
+class SaveOutputHandler:
+    def __init__(self):
+        self.outputs = []
+        
+    def __call__(self, module, module_in, module_out):
+        self.outputs.append(module_out)
+        
+    def clear(self):
+        self.outputs = []
