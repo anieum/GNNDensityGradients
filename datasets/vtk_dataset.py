@@ -34,12 +34,14 @@ class VtkDataset(torch.utils.data.Dataset):
             mesh = pv.UnstructuredGrid(path)
 
             # concatenate features
+            densities = torch.tensor(mesh.point_data["density"])
+            velocities = torch.tensor(mesh.point_data["velocity"])
+            density_gradients = torch.tensor(mesh.point_data["density_grad"])
+            
             if normalize:
-                densities = self.normalize(torch.tensor(mesh.point_data["density"]))
-                velocities = self.normalize(torch.tensor(mesh.point_data["velocity"]))
-            else:
-                densities = torch.tensor(mesh.point_data["density"])
-                velocities = torch.tensor(mesh.point_data["velocity"])
+                densities = self.normalize(densities)
+                velocities = self.normalize(velocities)
+                density_gradients = self.normalize(density_gradients)
 
             features = torch.cat((densities.view(-1, 1), velocities), dim=-1)
 
@@ -52,7 +54,6 @@ class VtkDataset(torch.utils.data.Dataset):
             #     sample = (density, velocity, point, file_idx)
             #     self.data.append(sample)
             
-            density_gradients = torch.tensor(mesh.point_data["density_grad"])
             self.target.append(density_gradients)
 
             self.n_points += mesh.n_points
