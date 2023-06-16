@@ -31,7 +31,7 @@ model = CConvModel()
 
 # training
 # see https://lightning.ai/docs/pytorch/stable/common/trainer.html
-trainer = pl.Trainer(num_nodes=1, precision=16, max_epochs=600, log_every_n_steps=1, check_val_every_n_epoch=10)
+trainer = pl.Trainer(num_nodes=1, precision=16, max_epochs=100, log_every_n_steps=1, check_val_every_n_epoch=10)
 
 print("Starting training")
 trainer.fit(model, train_loader, val_loader)
@@ -47,7 +47,7 @@ if GenerateImages:
         writer = SummaryWriter('lightning_logs')
 
         print("Visualizing", dataset_type)
-        results = [fig_to_tensor(fig) for fig in visualize_model_fig(model, dataset["train"], same_color_axis=True)]
+        results = [fig_to_tensor(fig) for fig in visualize_model_fig(model, dataset[dataset_type], same_color_axis=True)]
         # trainer.logger.experiment.add_images(f"results/{dataset_type}", torch.stack(results), global_step=trainer.global_step)
         
         for i, result in enumerate(results):
