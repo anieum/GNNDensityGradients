@@ -43,7 +43,7 @@ def visualize_model_fig(model,
                     dataset,
                     same_color_axis = False,
                     title = None,
-                    subplot_titles = ('Densities',  'Target density gradient', 'Predicted density gradient')):
+                    subplot_titles = ('Densities',  'Target density grad', 'Predicted density grad')):
     # Compare output
     features = dataset.data
     particle_positions = dataset.points_per_file

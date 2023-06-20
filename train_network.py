@@ -14,6 +14,8 @@ from utils.visualization import visualize_model_fig
 from utils.visualization import fig_to_tensor
 from utils.visualization import SaveOutputHandler
 
+print("Starting")
+
 # data
 dataset = {
     # Care: there probably is almost no generalization with all datasets being this similar
@@ -31,7 +33,7 @@ model = CConvModel()
 
 # training
 # see https://lightning.ai/docs/pytorch/stable/common/trainer.html
-trainer = pl.Trainer(num_nodes=1, precision=16, max_epochs=100, log_every_n_steps=1, check_val_every_n_epoch=10)
+trainer = pl.Trainer(num_nodes=1, max_epochs=2000, log_every_n_steps=1, check_val_every_n_epoch=10)
 
 print("Starting training")
 trainer.fit(model, train_loader, val_loader)
