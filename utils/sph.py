@@ -116,13 +116,17 @@ def get_spatial_density_gradient(point_cloud, masses, densities, kernel_grad=ker
     :param smoothing_length: smoothing length for the kernel function
     :return: spatial density gradient Grad rho for each point in the point cloud
     """
-    # todo: replace smoothing length with cutoff radius
+    # TODO: check if pairs occur once or twice! (Assumption is twice.)
     j, i = radius_graph(point_cloud, r=smoothing_length, batch=None, loop=True, max_num_neighbors=256)
 
-    distances = torch.norm(point_cloud[i] - point_cloud[j], dim=1).view(-1, 1)
-    pairwise_densities = densities[j].view(-1, 1) + densities[i].view(-1, 1)
-    kernel_grad = kernel_grad(distances, smoothing_length)
-    weight = masses[j].view(-1, 1) * pairwise_densities * kernel_grad
+    pairwise_difference = point_cloud[j] - point_cloud[i]
+    pairwise_distances = torch.norm(pairwise_difference, dim=1).view(-1, 1)
+    pairwise_directions = pairwise_difference / pairwise_distances
+    pairwise_directions = torch.nan_to_num(pairwise_directions, nan=1.0)
+
+    pairwise_density_diffs = densities[j].view(-1, 1) - densities[i].view(-1, 1)
+    kernel_grad = kernel_grad(pairwise_distances, smoothing_length) * pairwise_directions
+    weight = masses[j].view(-1, 1) * pairwise_density_diffs * kernel_grad
     summed = scatter(weight, i, dim=0, dim_size = point_cloud.shape[0], reduce='add')
 
     return summed / densities.view(-1, 1)
@@ -141,48 +145,21 @@ def get_temporal_density_gradient(point_cloud, masses, velocities, kernel_grad=k
     :param smoothing_length: smoothing length for the kernel function
     :return: temporal density gradient Drho/Dt for each point in the point cloud
     """
-
-    # This assumes mass to be 1. This might not make sense.
-    # mass = density * volume
-    # formula: Drho_i / Dt = sum_j m_j (v_i - v_j) W_Grad_i_j
-
-    # Build graph with radius r
-    # pairs is a tuple of two tensors. Tensor 1 is target and Tensor 2 is src for each edge
-    j, i = radius_graph(point_cloud, r=smoothing_length, batch=None, loop=True, max_num_neighbors=256)
+    # ignore loops, because if i == j, then v_i - v_j = 0 => Drho_i / Dt = 0
+    j, i = radius_graph(point_cloud, r=smoothing_length, batch=None, loop=False, max_num_neighbors=256)
     
-    # Calculate pairwise distances, by looking up the points in the point cloud
-    distances = torch.norm(point_cloud[i] - point_cloud[j], dim=1)
-
-    # Calculate pairwise kernel grad
-    kernel_grad = kernel_grad(distances, smoothing_length)
-
-    # Calculate velocity differences
+    pairwise_distances = torch.norm(point_cloud[i] - point_cloud[j], dim=1)
+    kernel_grad = kernel_grad(pairwise_distances, smoothing_length)
     velocity_diffs = velocities[i] - velocities[j]
 
-    # Calculate density differences (mass times velocity diff times kernel grad)
-    # we assume the mass is constant and equal to 1
-    # otherwise we would have to multiply by density and volume
-    direction = velocity_diffs / torch.norm(velocity_diffs, dim=1, keepdim=True)
-    
-    # image a single particle moving in some direction with velocity 2
-    # the density at our fixed point, will change after a single timestep by 2
-    # density_diffs = torch.nan_to_num(direction, nan = 1.0)
-    
-    density_diffs = velocity_diffs * direction * kernel_grad.view(-1,1)
-    density_diffs = torch.nan_to_num(density_diffs, nan = 1.0)  # todo: check 1 and 0
+    # direction = velocity_diffs / torch.norm(velocity_diffs, dim=1, keepdim=True)
+    # density_diffs = velocity_diffs * direction * kernel_grad.view(-1,1)
+
+    density_diffs = velocity_diffs * kernel_grad.view(-1,1)
     density_diffs = masses[j] * density_diffs
-    # Todo:
-    # î this is a problem because each self loop causes a nan value
-    # in effect this filters out these loops. But we probably need to consider
-    # these looped particles in the calculation
-    # (though if we think about a single particle in space, moving itself, will noch change the gradient or will it?)
-    # (yes it will change the gradient exactly by 1.0)
 
-    # add result together using scatter
-    # scatter(density_diffs, i, dim=0, out=densities)
     temporal_gradient = scatter(density_diffs, i, dim=0, dim_size = point_cloud.shape[0], reduce='add')
-    assert(temporal_gradient.shape == point_cloud.shape)
-
+    
     return temporal_gradient
 
 
