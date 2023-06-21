@@ -157,7 +157,7 @@ def get_temporal_density_gradient(point_cloud, masses, velocities, kernel_grad=k
 
     # multiply s.t. the resulting matrix is of shape (n, 1)
     density_diffs = torch.sum(velocity_diffs * kernel_grad, dim=1).view(-1, 1)
-    density_diffs = masses[j] * density_diffs
+    density_diffs = masses[j].view(-1, 1) * density_diffs
 
     temporal_gradient = scatter(density_diffs, i, dim=0, dim_size = point_cloud.shape[0], reduce='add')
     
