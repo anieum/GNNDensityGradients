@@ -10,7 +10,7 @@ import msgpack_numpy
 msgpack_numpy.patch()
 
 # TODO: SOURCE PRANTL
-class Simulation(torch.utils.data.Dataset):
+class SimulationDataset(torch.utils.data.Dataset):
     # Todo, we need the torch tensors
     # Todo, shuffle, batching, etc.
     # Todo, add velocity as data
