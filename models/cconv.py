@@ -2,15 +2,17 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.optim import Adam
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 import open3d.ml.torch as ml3d
 
-
+# see https://github.com/wi-re/torchSPHv2/blob/master/Cconv/1D/Untitled.ipynb
 class CConvModel(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        
-        self.lin_embedding = nn.Linear(4,8) 
+
+        self.lin_embedding = nn.Linear(4,8)
         self.cconv = ml3d.layers.ContinuousConv(
 		    in_channels=8,
             filters=16,
@@ -30,7 +32,7 @@ class CConvModel(pl.LightningModule):
         neighbors = neighbors[0]
 
         # x = self.cconv(x, neighbors, out_points, extents=2.0)
-        
+
         # Todo: I need the features for all neighbors! The outpositions are the only things that change
         # So ensure features has the same batch dimension as neighbors
         # While out_points can be of the size of the batch
@@ -42,8 +44,10 @@ class CConvModel(pl.LightningModule):
         return x
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-2) #todo: lr=1e-3
-        return optimizer
+        # todo: configure scheduler
+        optimizer = Adam(self.parameters(), lr=1e-3)
+        scheduler = ReduceLROnPlateau(optimizer, ...)
+        return [optimizer], [scheduler]
 
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch
