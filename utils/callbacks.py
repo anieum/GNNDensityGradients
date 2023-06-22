@@ -1,7 +1,9 @@
 import torch
-from visualization import visualize_model_fig, fig_to_tensor
+import open3d.ml.torch.python as ml3dp
+from utils.visualization import visualize_model_fig, fig_to_tensor, SaveOutputHandler
+
 import pytorch_lightning as pl
-from pl.callbacks import Callback
+from pytorch_lightning.callbacks import Callback
 
 # Possible hooks:
 # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.core.hooks.ModelHooks.html
@@ -41,12 +43,17 @@ class VisualizePredictionCallback(Callback):
         self.generate_images(trainer, pl_module, self.data_loader)
 
 
-
-
 class ActivationHistogramCallback(Callback):
-    def __init__(self, model, data_loader, dataset_type="train"):
+    """
+    Callback that generates a histogram of the activations of the model for each layer
+    and logs it to tensorboard.
+
+    :param model: model for which the activations of each layer should be generated
+    """
+
+    def __init__(self, model):
         super().__init__()
-        self.output_handler = SaveOutputHandler()
+        self.hook_handles = []
         self.ignore_layers = [
             ml3dp.layers.convolutions.ContinuousConv,
             ml3dp.layers.neighbor_search.FixedRadiusSearch,
@@ -54,42 +61,33 @@ class ActivationHistogramCallback(Callback):
         ]
         self.model = model
 
-    def on_fit_start(self, trainer, pl_module):
-        # todo: register hook
-        # do 1 forward pass with random data to visualize activations
+    def generate_activations(self, trainer):
+        tensorboard = trainer.logger.experiment
+        data_saver = SaveOutputHandler()
+
+
+        # register hook that stores activations
+        for layer in self.model.modules():
+            if any(isinstance(layer, L) for L in self.ignore_layers):
+                continue
+
+            handle = layer.register_forward_hook(data_saver)
+            self.hook_handles.append(handle)
+
+        # run model and log activations
+        features = torch.rand(1000, 4)
+        particle_positions = torch.rand(1000, 3)
+        input = ([features], [particle_positions], particle_positions)
+        self.model(input)
+
         # write activations to tensorboard
-        # unregister hook
+        for i, x in enumerate(data_saver.outputs):
+            tensorboard.add_histogram("Initial activations (no o3d layers)", x.detach().numpy(), i+1)
 
+        # clear stored data and remove hooks
+        data_saver.clear()
+        for handle in self.hook_handles:
+            handle.remove()
 
-
-# Log activations
-GenerateActivationHistogram = False
-
-# Generate activation histogram for each layer
-if GenerateActivationHistogram:
-    hook_handles = []
-    save_output = SaveOutputHandler()
-
-    # register hook for each layer
-    for layer in model.modules():
-        ignore_layers = [ml3dp.layers.convolutions.ContinuousConv, ml3dp.layers.neighbor_search.FixedRadiusSearch, ml3dp.layers.neighbor_search.RadiusSearch]
-
-        if any(isinstance(layer, L) for L in ignore_layers):
-            continue
-
-        handle = layer.register_forward_hook(save_output)
-        hook_handles.append(handle)
-
-    # run model and log activations
-
-    features = torch.rand(1000, 4)
-    particle_positions = torch.rand(1000, 3)
-    input = ([features], [particle_positions], particle_positions)
-    output = model(input)
-
-    # write activations to tensorboard
-    for i, x in enumerate(save_output.outputs):
-        # writer.add_histogram("layer (exclude o3d layers)", x, i+1)
-        trainer.logger.experiment.add_histogram("Initial activations (no o3d layers)", x.detach().numpy(), i+1)
-
-    save_output.clear()
+    def on_fit_start(self, trainer, pl_module):
+        self.generate_activations(trainer)

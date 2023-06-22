@@ -1,20 +1,23 @@
-import glob, os
-import torch
+# Torch
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 from torchvision import transforms
+
 import pytorch_lightning as pl
-import open3d.ml.torch as ml3d
-import open3d.ml.torch.python as ml3dp
+from pytorch_lightning.callbacks import \
+    ModelCheckpoint, EarlyStopping, LearningRateFinder, LearningRateMonitor, RichModelSummary
+from utils.callbacks import *
 
 from models.cconv import CConvModel
 from datasets.vtk_dataset import VtkDataset
 from datasets.density_dataset import SimulationDataset
-from utils.visualization import visualize_model_fig
-from utils.visualization import fig_to_tensor
-from utils.visualization import SaveOutputHandler
+
+from glob import glob
+import os
+
+
 
 hparams = {
     'data_split': (0.7, 0.15, 0.15),
@@ -42,8 +45,6 @@ hparams = {
 
 if not os.path.exists(hparams['save_path']):
     os.makedirs(hparams['save_path'])
-
-
 
 # Datasets
 files = glob(os.path.join(hparams['dataset_dir'], 'train', '*.zst'))
@@ -74,12 +75,14 @@ trainer = pl.Trainer(
     check_val_every_n_epoch = hparams['val_every_n_epoch']
 )
 
-trainer.fit(model=model, train_dataloader=train_loader, val_dataloaders=val_loader)
+# Training
+# TODO: callbacks: ModelCheckpoint, EarlyStopping, LearningRateFinder, LearningRateMonitor, RichModelSummary
+callbacks = [
+    VisualizePredictionCallback(model=model, dataset=dataset["train"], dataset_type="train"),
+    VisualizePredictionCallback(model=model, dataset=dataset["eval"], dataset_type="eval"),
+    ActivationHistogramCallback(model=model)
+]
+trainer.fit(model=model, train_dataloader=train_loader, val_dataloaders=val_loader, callbacks=callbacks)
 
-# evaluation
-# trainer.test(model, test_dataloaders=test_loader)
-
-# see https://github.com/wi-re/torchSPHv2/blob/master/Cconv/1D/Untitled.ipynb
-
-# (Only right before publishing the thesis)
+# Testing (Only right before publishing the thesis)
 # trainer.test(dataloaders=test_dataloaders)
