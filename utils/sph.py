@@ -3,6 +3,7 @@ import numpy as np
 from torch_geometric.nn import radius_graph
 from torch_geometric.nn import radius as radius_search
 from torch_scatter import scatter
+from functorch import vmap # care in pytorch 2.0 this will be torch.vmap
 
 # Todo: use pysph or torchSPHv2
 # Todo: smoothing length != cutoff! make sure the kernel doesn't go to 0 too early
@@ -92,7 +93,17 @@ def get_neighbors(point_cloud, point_cloud_with_boundary, radius, loop=True):
     # (with j and i swapped as output here)
     # given the correct parameters
 
-    pairs = radius_search(x=point_cloud_with_boundary, y=point_cloud, r=radius, max_num_neighbors=2048)
+    # TODO: Support Batchdimensions via vmap! https://pytorch.org/functorch/stable/generated/functorch.vmap.html
+    # it however seems to require a new pytorch version: https://github.com/pytorch/pytorch/issues/97425
+
+    # if point_cloud.dim == 2:
+    #     point_cloud = point_cloud.unsqueeze(0)
+
+    # how to support batchdimensions? The lengths of the tensors can be different for each item in the batch
+    # so we can't stack our tensors. As batch[0] could be [10, 2] and batch[1] could be [12, 2] etc.
+    # TODO FIX: WE USE THE VMAP FOR GET_DENSITY, GET_DENSITY_GRADIENT etc. ITS OUTPUT DIMENSIONS ARE CONSTANT!
+
+    pairs = radius_search_vectorized(x=point_cloud_with_boundary, y=point_cloud, r=radius, max_num_neighbors=2048)
 
     if not loop:
         pairs = pairs[:,pairs[0] != pairs[1]]
@@ -141,11 +152,11 @@ def get_density(point_cloud, masses, kernel=kernel, smoothing_length=smoothing_l
         )
 
         # Calculate pairwise distances, by looking up the points in the point cloud
-        distances = torch.norm(total_particles[i] - total_particles[j], dim=1).view(-1, 1)
+        distances = torch.norm(total_particles[i] - total_particles[j], dim=-1, keepdim=True)
 
         # Calculate pairwise kernel values
         kernel_values = kernel(distances / smoothing_length, smoothing_length)
-        kernel_values = masses[j].view(-1, 1) * kernel_values
+        kernel_values = masses[j] * kernel_values
 
         return scatter(kernel_values, i, dim=0, dim_size = point_cloud.shape[0], reduce='add')
 
@@ -178,15 +189,15 @@ def get_spatial_density_gradient(point_cloud, masses, densities, kernel_grad=ker
     )
 
     pairwise_difference = total_particles[j] - total_particles[i]
-    pairwise_distances = torch.norm(pairwise_difference, dim=1).view(-1, 1)
+    pairwise_distances = torch.norm(pairwise_difference, dim=-1, keepdim=True)
     pairwise_directions = pairwise_difference / pairwise_distances
 
-    pairwise_density_diffs = densities[j].view(-1, 1) - densities[i].view(-1, 1)
+    pairwise_density_diffs = densities[j] - densities[i]
     kernel_grad = kernel_grad(pairwise_distances / smoothing_length, smoothing_length) * pairwise_directions
-    weight = masses[j].view(-1, 1) * pairwise_density_diffs * kernel_grad
+    weight = masses[j] * pairwise_density_diffs * kernel_grad
     summed = scatter(weight, i, dim=0, dim_size = point_cloud.shape[0], reduce='add')
 
-    return summed / densities[:len(point_cloud)].view(-1, 1)
+    return summed / densities[:len(point_cloud)]
 
 
 
@@ -215,16 +226,16 @@ def get_temporal_density_gradient(point_cloud, masses, velocities, kernel_grad=k
     )
 
     pairwise_difference = total_particles[j] - total_particles[i]
-    pairwise_distances = torch.norm(pairwise_difference, dim=1)
-    direction = pairwise_difference / pairwise_distances.view(-1, 1)
+    pairwise_distances = torch.norm(pairwise_difference, dim=-1, keepdim=True)
+    direction = pairwise_difference / pairwise_distances
 
-    kernel_grad = kernel_grad(pairwise_distances / smoothing_length, smoothing_length).view(-1,1)
+    kernel_grad = kernel_grad(pairwise_distances / smoothing_length, smoothing_length)
     kernel_grad = kernel_grad * direction
     velocity_diffs = velocities[i] - velocities[j]
 
     # multiply s.t. the resulting matrix is of shape (n, 1)
-    density_diffs = torch.sum(velocity_diffs * kernel_grad, dim=1).view(-1, 1)
-    density_diffs = masses[j].view(-1, 1) * density_diffs
+    density_diffs = torch.sum(velocity_diffs * kernel_grad, dim=-1, keepdim=True)
+    density_diffs = masses[j] * density_diffs
 
     temporal_gradient = scatter(density_diffs, i, dim=0, dim_size = point_cloud.shape[0], reduce='add')
 
