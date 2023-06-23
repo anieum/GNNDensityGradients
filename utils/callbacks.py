@@ -20,10 +20,10 @@ class VisualizePredictionCallback(Callback):
     :param dataset_type: type of the dataset as string ("train", "eval", "test")
     """
 
-    def __init__(self, model, data_loader, dataset_type="train"):
+    def __init__(self, model, dataset, dataset_type="train"):
         super().__init__()
         self.model = model
-        self.data_loader = data_loader
+        self.dataset = dataset
         self.dataset_type = dataset_type
 
     def generate_images(self, trainer, model, dataset):
@@ -36,11 +36,11 @@ class VisualizePredictionCallback(Callback):
 
     def on_fit_start(self, trainer, pl_module):
         print("Visualizing", self.dataset_type)
-        self.generate_images(trainer, pl_module, self.data_loader)
+        self.generate_images(trainer, pl_module, self.dataset)
 
     def on_fit_end(self, trainer, pl_module):
         print("Visualizing", self.dataset_type)
-        self.generate_images(trainer, pl_module, self.data_loader)
+        self.generate_images(trainer, pl_module, self.dataset)
 
 
 class ActivationHistogramCallback(Callback):
