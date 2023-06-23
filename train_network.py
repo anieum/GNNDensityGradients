@@ -1,4 +1,3 @@
-# Torch
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
@@ -48,7 +47,7 @@ if not os.path.exists(hparams['save_path']):
 
 # Datasets
 files = glob(os.path.join(hparams['dataset_dir'], 'train', '*.zst'))
-data = SimulationDataset(files=files, transforms = None)
+data = SimulationDataset(files=files, transform = None)
 
 dataset = {}
 dataset["train"], dataset["eval"], dataset["test"] = random_split(data, hparams['data_split'])
@@ -68,21 +67,25 @@ else:
 
 # Trainer
 # see https://lightning.ai/docs/pytorch/stable/common/trainer.html
-trainer = pl.Trainer(
-    num_nodes = hparams['num_training_nodes'],
-    max_epochs = hparams['num_epochs'],
-    log_every_n_steps = hparams['log_every_n_steps'],
-    check_val_every_n_epoch = hparams['val_every_n_epoch']
-)
 
-# Training
 # TODO: callbacks: ModelCheckpoint, EarlyStopping, LearningRateFinder, LearningRateMonitor, RichModelSummary
 callbacks = [
     VisualizePredictionCallback(model=model, dataset=dataset["train"], dataset_type="train"),
     VisualizePredictionCallback(model=model, dataset=dataset["eval"], dataset_type="eval"),
     ActivationHistogramCallback(model=model)
 ]
-trainer.fit(model=model, train_dataloader=train_loader, val_dataloaders=val_loader, callbacks=callbacks)
+callbacks.clear()
+
+trainer = pl.Trainer(
+    num_nodes = hparams['num_training_nodes'],
+    max_epochs = hparams['num_epochs'],
+    log_every_n_steps = hparams['log_every_n_steps'],
+    check_val_every_n_epoch = hparams['val_every_n_epoch'],
+    callbacks = callbacks,
+)
+
+trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+
 
 # Testing (Only right before publishing the thesis)
 # trainer.test(dataloaders=test_dataloaders)

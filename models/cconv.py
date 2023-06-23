@@ -1,4 +1,3 @@
-
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -7,8 +6,16 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 import open3d.ml.torch as ml3d
 
-# see https://github.com/wi-re/torchSPHv2/blob/master/Cconv/1D/Untitled.ipynb
+
+
 class CConvModel(pl.LightningModule):
+    """
+    Model that uses continuous convolutions to predict the density gradient.
+
+    :param hparams: hyperparameters for the model  (TODO)
+    """
+    # see https://github.com/wi-re/torchSPHv2/blob/master/Cconv/1D/Untitled.ipynb
+
     def __init__(self):
         super().__init__()
 
@@ -23,6 +30,7 @@ class CConvModel(pl.LightningModule):
             radius_search_ignore_query_points=True
 	    )
         self.lin_out_mapping = nn.Linear(16, 1)
+
 
     def forward(self, x):
         features_neighbors, neighbors, out_pos = x
@@ -43,11 +51,14 @@ class CConvModel(pl.LightningModule):
 
         return x
 
+
     def configure_optimizers(self):
         # todo: configure scheduler
         optimizer = Adam(self.parameters(), lr=1e-3)
-        scheduler = ReduceLROnPlateau(optimizer, ...)
-        return [optimizer], [scheduler]
+        #scheduler = ReduceLROnPlateau(optimizer, ...)
+        #return [optimizer], [scheduler]
+        return optimizer
+
 
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch
@@ -57,6 +68,7 @@ class CConvModel(pl.LightningModule):
 
         self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
         return loss
+
 
     def validation_step(self, val_batch, batch_idx):
         x, y = val_batch

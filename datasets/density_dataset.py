@@ -43,59 +43,60 @@ class SimulationDataset(torch.utils.data.Dataset):
         self.shuffle_in_files = shuffle_in_files
         self.window = window
         self.max_per_file = max_per_file
+        self.transform = transform
 
     def __getitem__(self, idx):
         # for each idx return a file!
         decompressor = zstd.ZstdDecompressor()
-
+        file_idx = idx
         samples = []
-        for file_idx in idx:
-            with open(self.files[file_idx], 'rb') as f:
-                data = msgpack.unpackb(decompressor.decompress(f.read()), raw=False)
 
-            # A single file has e.g. 10 timesteps or more.
-            # This is a problem, because we want to return single samples
-            # but we do not know how many samples we have in each file
+        with open(self.files[file_idx], 'rb') as f:
+            data = msgpack.unpackb(decompressor.decompress(f.read()), raw=False)
 
-            # A possible fix for this is to generate a map for the dataset, that
-            # translates the idx to the file and the sample in the file.
+        # A single file has e.g. 10 timesteps or more.
+        # This is a problem, because we want to return single samples
+        # but we do not know how many samples we have in each file
 
-            # This however requires us to load the complete 34GB dataset and check each file
-            # But this has only to be done once. We than save the map and change this function.
+        # A possible fix for this is to generate a map for the dataset, that
+        # translates the idx to the file and the sample in the file.
 
-            # Alternatively, __getitem__ ignores the idx and implements a generator similar to Prantls.
-            # E.g. yielding single samples and continuing later.
+        # This however requires us to load the complete 34GB dataset and check each file
+        # But this has only to be done once. We than save the map and change this function.
 
-            bounding_box = data[0]['box']
-            bounding_box_normals = data[0]['box_normals']
+        # Alternatively, __getitem__ ignores the idx and implements a generator similar to Prantls.
+        # E.g. yielding single samples and continuing later.
 
-            data_idx = np.arange(len(data))
+        bounding_box = data[0]['box']
+        bounding_box_normals = data[0]['box_normals']
 
-            if self.shuffle_in_files:
-                np.random.shuffle(data_idx)
+        data_idx = np.arange(len(data))
 
-            if self.max_per_file > 0:
-                data_idx = data_idx[:self.max_per_file]
+        if self.shuffle_in_files:
+            np.random.shuffle(data_idx)
 
-            # ['pos', 'vel', 'm', 'viscosity', 'box', 'box_normals', 'num_rigid_bodies', 'frame_id', 'scene_id']
-            # Our samples are too big. The samplelist easily takes up GBs of memory when being processed
-            for i in data_idx:
-                sample = {
-                    'pos': bounding_box,
-                    'vel': bounding_box_normals,
-                    'm': data[i]['m'],
-                    'viscosity': data[i]['viscosity'],
-                    'box': data[i]['box'],
-                    'box_normals': data[i]['box_normals'],
-                    'num_rigid_bodies': data[i]['num_rigid_bodies'],
-                    'frame_id': data[i]['frame_id'],
-                    'scene_id': data[i]['scene_id']
-                }
+        if self.max_per_file > 0:
+            data_idx = data_idx[:self.max_per_file]
 
-                if self.transform:
-                    sample = self.transform(sample)
+        # ['pos', 'vel', 'm', 'viscosity', 'box', 'box_normals', 'num_rigid_bodies', 'frame_id', 'scene_id']
+        # Our samples are too big. The samplelist easily takes up GBs of memory when being processed
+        for i in data_idx:
+            sample = {
+                'pos': data[i]['pos'],
+                'vel': data[i]['vel'],
+                'm': data[i]['m'],
+                'viscosity': data[i]['viscosity'],
+                'box':bounding_box,
+                'box_normals': bounding_box_normals,
+                # 'num_rigid_bodies': data[i]['num_rigid_bodies'],
+                'frame_id': data[i]['frame_id'],
+                'scene_id': data[i]['scene_id']
+            }
 
-                samples.append(sample)
+            if self.transform:
+                sample = self.transform(sample)
+
+            samples.append(sample)
 
         return samples
 
