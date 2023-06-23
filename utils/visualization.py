@@ -11,8 +11,8 @@ def plot_particles(positions, color=None, colorscale = 'Viridis'):
     """
     marker = dict(
         size=5,
-        colorscale=colorscale
-        opacity=0.8
+        colorscale=colorscale,
+        opacity=0.8,
     )
 
     if type(positions) == torch.Tensor:
