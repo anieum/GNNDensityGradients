@@ -33,17 +33,10 @@ class CConvModel(pl.LightningModule):
 
 
     def forward(self, x):
-        features_neighbors, neighbors, out_pos = x
-
-        # Todo: only pass the neighbors features once
-        features_neighbors = features_neighbors[0]
-        neighbors = neighbors[0]
-
-        # x = self.cconv(x, neighbors, out_points, extents=2.0)
-
-        # Todo: I need the features for all neighbors! The outpositions are the only things that change
-        # So ensure features has the same batch dimension as neighbors
-        # While out_points can be of the size of the batch
+        # features are density in the first column followed by the velocity in the next 3 columns
+        features_neighbors = torch.cat((x['density'], x['vel']), dim=-1)
+        neighbors = x['pos']  # TODO: THIS IGNORES BOUNDARIES
+        out_pos = x['pos']
 
         x = self.lin_embedding(features_neighbors).float()
         x = self.cconv(inp_features=x, inp_positions=neighbors, out_positions=out_pos, extents=2.0)
@@ -61,20 +54,15 @@ class CConvModel(pl.LightningModule):
 
 
     def training_step(self, train_batch, batch_idx):
-        x, y = train_batch
+        y_pred = self(train_batch)
+        loss = F.mse_loss(y_pred, train_batch['temporal_density_grad'].unsqueeze(-1))
 
-        y_pred = self(x)
-        loss = F.mse_loss(y_pred, y.view(-1, 1))
-
-        self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
         return loss
 
 
     def validation_step(self, val_batch, batch_idx):
-        x, y = val_batch
-
-        y_pred = self(x)
-        loss = F.mse_loss(y_pred, y.view(-1, 1))
+        y_pred = self(val_batch)
+        loss = F.mse_loss(y_pred, val_batch['temporal_density_grad'].unsqueeze(-1))
 
         self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
 

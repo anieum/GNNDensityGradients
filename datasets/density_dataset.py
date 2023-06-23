@@ -7,6 +7,7 @@ import zstandard as zstd
 import msgpack
 import msgpack_numpy
 msgpack_numpy.patch()
+import random
 
 # TODO: SOURCE PRANTL
 class SimulationDataset(torch.utils.data.Dataset):
@@ -49,7 +50,6 @@ class SimulationDataset(torch.utils.data.Dataset):
         # for each idx return a file!
         decompressor = zstd.ZstdDecompressor()
         file_idx = idx
-        samples = []
 
         with open(self.files[file_idx], 'rb') as f:
             data = msgpack.unpackb(decompressor.decompress(f.read()), raw=False)
@@ -80,6 +80,8 @@ class SimulationDataset(torch.utils.data.Dataset):
 
         # ['pos', 'vel', 'm', 'viscosity', 'box', 'box_normals', 'num_rigid_bodies', 'frame_id', 'scene_id']
         # Our samples are too big. The samplelist easily takes up GBs of memory when being processed
+
+        samples = []
         for i in data_idx:
             sample = {
                 'pos': data[i]['pos'],
@@ -98,7 +100,14 @@ class SimulationDataset(torch.utils.data.Dataset):
 
             samples.append(sample)
 
-        return samples
+        print(type(random.choice(samples))) # TODO: REMOVE THIS
+
+        # TODO: MAKE IDX REFER A SPECIFIC SAMPLE IN A SPECIFIC FILE
+        # CURRENTLY EACH IDX CAUSES A COMPLETE FILE TO BE LOADED
+        if self.transform:
+            return self.transform(random.choice(samples))
+        else:
+            return random.choice(samples)
 
     def __len__(self):
         return len(self.files)

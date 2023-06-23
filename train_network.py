@@ -11,7 +11,7 @@ from utils.callbacks import *
 
 from models.cconv import CConvModel
 from datasets.vtk_dataset import VtkDataset
-from datasets.density_dataset import SimulationDataset
+from datasets.density_data_module import DensityDataModule
 
 from glob import glob
 import os
@@ -19,59 +19,54 @@ import os
 
 
 hparams = {
+    'dataset_dir': 'datasets/data/dpi_dam_break/train',
     'data_split': (0.7, 0.15, 0.15),
     'batch_size': 2,
-    'lr': 1e-3,                    #todo
 
-    'num_training_nodes': 1,
-    'num_workers': 0,              #todo
-    'num_features': 4,
-    'num_epochs': 1000,
+    'num_training_nodes': 1, # number of nodes to train on
+    'num_workers': 0, # number of workers for dataloader
 
+    'num_epochs': 5,
     'log_every_n_steps': 1,
     'val_every_n_epoch': 10,
-    'save_every_n_epoch': 100,     #todo
 
-    'save_path': 'checkpoints',    #todo
-    'load_path': None,             #todo
-    'dataset_dir': 'datasets/data/dpi_dam_break',
-
-    'model': 'cconv',              #todo
-    'optimizer': 'adam',           #todo
-    'scheduler': 'cosine',         #todo
+    # TODO: NOT YET IMPLEMENTED
+    'num_features': 4,
+    'lr': 1e-3,
+    'save_every_n_epoch': 100,
+    'save_path': 'checkpoints',
+    'load_path': None,
+    'model': 'cconv',
+    'optimizer': 'adam',
+    'scheduler': 'cosine',
 }
-
 
 if not os.path.exists(hparams['save_path']):
     os.makedirs(hparams['save_path'])
 
-# Datasets
-files = glob(os.path.join(hparams['dataset_dir'], 'train', '*.zst'))
-data = SimulationDataset(files=files, transform = None)
+if not os.path.exists(hparams['dataset_dir']):
+    raise Exception("Data directory does not exist")
 
-dataset = {}
-dataset["train"], dataset["eval"], dataset["test"] = random_split(data, hparams['data_split'])
-
-# Dataloaders
-train_loader = DataLoader(dataset["train"], batch_size=hparams['batch_size'], num_workers=hparams['num_workers'])
-val_loader = DataLoader(dataset["eval"], batch_size=hparams['batch_size'], num_workers=hparams['num_workers'])
-test_loader = DataLoader(dataset["test"], batch_size=hparams['batch_size'], num_workers=hparams['num_workers'])
+hparams['dataset_dir'] = os.path.abspath(hparams['dataset_dir'])
 
 # Model
-model = None
-if hparams['load_path'] is not None:
-    # model = CConvModel.load_from_checkpoint(hparams['load_path'])
-    raise NotImplementedError("Loading from checkpoint not implemented yet")
-else:
-    model = CConvModel()
+# TODO: https://lightning.ai/docs/pytorch/stable/common/checkpointing_basic.html
+model = CConvModel()
 
-# Trainer
-# see https://lightning.ai/docs/pytorch/stable/common/trainer.html
+# Datasets
+density_data = DensityDataModule(
+    data_dir = hparams['dataset_dir'],
+    batch_size = hparams['batch_size'],
+    data_split = hparams['data_split'],
+    num_workers = hparams['num_workers'],
+    device = model.device
+)
+density_data.setup("fit")
 
 # TODO: callbacks: ModelCheckpoint, EarlyStopping, LearningRateFinder, LearningRateMonitor, RichModelSummary
 callbacks = [
-    VisualizePredictionCallback(model=model, dataset=dataset["train"], dataset_type="train"),
-    VisualizePredictionCallback(model=model, dataset=dataset["eval"], dataset_type="eval"),
+    VisualizePredictionCallback(model=model, dataset=density_data.train_dataloader(), dataset_type="train"),
+    VisualizePredictionCallback(model=model, dataset=density_data.val_dataloader(), dataset_type="eval"),
     ActivationHistogramCallback(model=model)
 ]
 callbacks.clear()
@@ -84,7 +79,7 @@ trainer = pl.Trainer(
     callbacks = callbacks,
 )
 
-trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+trainer.fit(model=model, datamodule=density_data)
 
 
 # Testing (Only right before publishing the thesis)
