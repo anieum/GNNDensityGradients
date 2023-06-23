@@ -3,11 +3,41 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from plotly.subplots import make_subplots
-# Result heatmap
+
+
+def plot_particles(positions, color=None, colorscale = 'Viridis'):
+    """
+    Plots the positions in a 3D scatter plot.
+    """
+    marker = dict(
+        size=5,
+        colorscale=colorscale
+        opacity=0.8
+    )
+
+    if type(positions) == torch.Tensor:
+        positions = positions.cpu()
+
+    if color is not None:
+        if type(color) == np.ndarray:
+            marker['color'] = color.reshape(-1)
+        elif type(color) == torch.Tensor:
+            marker['color'] = color.cpu().view(-1)
+        else:
+            marker['color'] = color
+
+    fig = go.Figure(data=[go.Scatter3d(
+        x=positions[:, 0],
+        y=positions[:, 2],
+        z=positions[:, 1],
+        mode='markers',
+        marker=marker
+    )])
+
+    fig.show()
+
 
 # Build grid with all particles
-
-
 def get_grid(vector):
     size = int(np.ceil(np.sqrt(len(vector))))
     grid = np.zeros((size, size))
@@ -17,7 +47,7 @@ def get_grid(vector):
             idx = i * size + j
             if idx < len(vector):
                 grid[i][j] = vector[idx]
-    
+
     return grid
 
 def visualize_dataset(dataset, same_color_axis = False, title = "Normalized Density vs. Normalized Density Gradient"):
@@ -76,12 +106,12 @@ def visualize_model_fig(model,
             fig.add_trace(go.Heatmap(z=grid_data), row=1, col=1)
             fig.add_trace(go.Heatmap(z=grid_target), row=1, col=2)
             fig.add_trace(go.Heatmap(z=grid_result), row=1, col=3)
-        
+
         if title is not None:
             fig.update_layout(title_text=title)
 
         figs.append(fig)
-    
+
     return figs
 
 def visualize_model(model,
@@ -89,7 +119,7 @@ def visualize_model(model,
                     same_color_axis = False,
                     title = None,
                     subplot_titles = ('Densities',  'Target density gradient', 'Predicted density gradient')):
-    
+
     fig = visualize_model_fig(model, dataset, same_color_axis, title, subplot_titles)
     fig.show()
 
@@ -109,9 +139,9 @@ def fig_to_tensor(fig):
 class SaveOutputHandler:
     def __init__(self):
         self.outputs = []
-        
+
     def __call__(self, module, module_in, module_out):
         self.outputs.append(module_out)
-        
+
     def clear(self):
         self.outputs = []
