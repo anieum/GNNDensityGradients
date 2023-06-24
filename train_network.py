@@ -26,7 +26,7 @@ hparams = {
     'num_training_nodes': 1, # number of nodes to train on (e.g. 1 GPU)
     'num_workers': 0, # number of workers for dataloader (e.g. 2 worker threads)
 
-    'num_epochs': 15,
+    'num_epochs': 30,
     'log_every_n_steps': 1,
     'val_every_n_epoch': 1,
 
@@ -66,11 +66,10 @@ density_data.setup("fit")
 
 # TODO: callbacks: ModelCheckpoint, EarlyStopping, LearningRateFinder, LearningRateMonitor, RichModelSummary
 callbacks = [
-    VisualizePredictionCallback(model=model, dataset=density_data.train_dataloader(), dataset_type="train"),
-    VisualizePredictionCallback(model=model, dataset=density_data.val_dataloader(), dataset_type="eval"),
-    ActivationHistogramCallback(model=model)
+    VisualizePredictionCallback(model=model, dataset=density_data.dataset['train'], dataset_type="train"),
+    VisualizePredictionCallback(model=model, dataset=density_data.dataset['eval'], dataset_type="eval"),
+    # ActivationHistogramCallback(model=model)
 ]
-callbacks.clear()
 
 trainer = pl.Trainer(
     num_nodes = hparams['num_training_nodes'],

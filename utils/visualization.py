@@ -3,6 +3,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from plotly.subplots import make_subplots
+from torch.nn.functional import mse_loss
 
 
 def plot_particles(positions, color=None, colorscale = 'Viridis'):
@@ -39,6 +40,10 @@ def plot_particles(positions, color=None, colorscale = 'Viridis'):
 
 # Build grid with all particles
 def get_grid(vector):
+    """
+    Builds a grid from a vector. The values of the grid are filled row-wise.
+    """
+    vector = vector.squeeze()
     size = int(np.ceil(np.sqrt(len(vector))))
     grid = np.zeros((size, size))
 
@@ -69,50 +74,75 @@ def visualize_dataset(dataset, same_color_axis = False, title = "Normalized Dens
 
     fig.show()
 
+# todo: move this into the dataset class
+def transform_sample(sample, transform):
+    """
+    Applies a transform to a single sample.
+    """
+    for key in sample:
+        if type(sample[key]) == torch.Tensor:
+            sample[key] = transform(sample[key])
+
+    return sample
+
+def transform_batch(batch, transform):
+    """
+    Applies a transform to a batch of samples.
+    """
+    for i in range(len(batch)):
+        batch[i] = transform_sample(batch[i], transform)
+
+    return batch
+
+
 def visualize_model_fig(model,
                     dataset,
                     same_color_axis = False,
                     title = None,
-                    subplot_titles = ('Densities',  'Target density grad', 'Predicted density grad')):
-    # Compare output
-    features = dataset.data
-    particle_positions = dataset.points_per_file
+                    subplot_titles = ('Densities',  'Target density grad', 'Predicted density grad'),
+                    width = 1000,
+                    height = 450):
+    # Pick a random sample in the dataset and visualize it
+    idx = np.random.randint(0, len(dataset))
+    random_sample = dataset.__getitem__(idx)
 
-    # For each input simulation state, create output grids
-    figs = []
-    for features, particle_positions, targets in zip(dataset.data, dataset.points_per_file, dataset.target):
-        densities = features[:, 0]
-        # velocities = features[:, 1:3] # not required but useful to know
+    # Move sample to correct device, remove batch dimension and move to cpu for plotly
+    transform_sample(random_sample, lambda x: x.clone().unsqueeze(0).to(model.device))
+    result = model(random_sample).cpu()
+    transform_sample(random_sample, lambda x: x.cpu())
 
-        # Forward pass
-        input = ([features], [particle_positions], particle_positions)
-        result = model(input)
+    # Order data in grids
+    grid_data = get_grid(random_sample['density'].detach().numpy())
+    grid_result = get_grid(result.detach().numpy())
+    grid_target = get_grid(random_sample['temporal_density_gradient'].detach().numpy())
 
-        grid_result = get_grid(result.detach().numpy())
-        grid_target = get_grid(targets)
-        grid_data = get_grid(densities)
+    # https://stackoverflow.com/a/58853985
+    fig = make_subplots(rows=1,
+                        cols=3,
+                        subplot_titles=subplot_titles)
+    if same_color_axis:
+        fig.add_trace(go.Heatmap(z=grid_data, coloraxis = "coloraxis"), row=1, col=1)
+        fig.add_trace(go.Heatmap(z=grid_target, coloraxis = "coloraxis"), row=1, col=2)
+        fig.add_trace(go.Heatmap(z=grid_result, coloraxis = "coloraxis"), row=1, col=3)
+        fig.update_layout(coloraxis = {'colorscale':'plasma'})
+    else:
+        fig.add_trace(go.Heatmap(z=grid_data), row=1, col=1)
+        fig.add_trace(go.Heatmap(z=grid_target), row=1, col=2)
+        fig.add_trace(go.Heatmap(z=grid_result), row=1, col=3)
+
+    # Add MSE loss
+    loss = mse_loss(result, random_sample['temporal_density_gradient'])
+
+    if title is None:
+        fig.update_layout(title_text=f"Random batch MSE: {loss.item():.4f}")
+    else:
+        fig.update_layout(title_text=f"{title} <br><sup>MSE on Random Batch: {loss.item():.4f}</sup>")
+
+    fig.update_layout(width=width, height=height)
+
+    return fig
 
 
-        # https://stackoverflow.com/a/58853985
-        fig = make_subplots(rows=1,
-                            cols=3,
-                            subplot_titles=subplot_titles)
-        if same_color_axis:
-            fig.add_trace(go.Heatmap(z=grid_data, coloraxis = "coloraxis"), row=1, col=1)
-            fig.add_trace(go.Heatmap(z=grid_target, coloraxis = "coloraxis"), row=1, col=2)
-            fig.add_trace(go.Heatmap(z=grid_result, coloraxis = "coloraxis"), row=1, col=3)
-            fig.update_layout(coloraxis = {'colorscale':'plasma'})
-        else:
-            fig.add_trace(go.Heatmap(z=grid_data), row=1, col=1)
-            fig.add_trace(go.Heatmap(z=grid_target), row=1, col=2)
-            fig.add_trace(go.Heatmap(z=grid_result), row=1, col=3)
-
-        if title is not None:
-            fig.update_layout(title_text=title)
-
-        figs.append(fig)
-
-    return figs
 
 def visualize_model(model,
                     dataset,

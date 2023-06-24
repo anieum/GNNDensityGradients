@@ -29,10 +29,9 @@ class VisualizePredictionCallback(Callback):
     def generate_images(self, trainer, model, dataset):
         tensorboard = trainer.logger.experiment
 
-        results = [fig_to_tensor(fig) for fig in visualize_model_fig(model, dataset, same_color_axis=True)]
-
-        for i, result in enumerate(results):
-            tensorboard.add_image(f"results/{self.dataset_type}/{i}", result, global_step=trainer.global_step)
+        title = self.dataset_type.capitalize() + " dataset sample"
+        result = fig_to_tensor(visualize_model_fig(model, dataset, same_color_axis=True, title=title))
+        tensorboard.add_image(f"results/{self.dataset_type}", result, global_step=trainer.global_step)
 
     def on_fit_start(self, trainer, pl_module):
         print("Visualizing", self.dataset_type)
