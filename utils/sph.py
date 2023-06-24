@@ -4,6 +4,7 @@ from torch_geometric.nn import radius_graph
 from torch_geometric.nn import radius as radius_search
 from torch_scatter import scatter
 from functorch import vmap # care in pytorch 2.0 this will be torch.vmap
+from warnings import warn
 
 # Todo: use pysph or torchSPHv2
 # Todo: smoothing length != cutoff! make sure the kernel doesn't go to 0 too early
@@ -103,7 +104,7 @@ def get_neighbors(point_cloud, point_cloud_with_boundary, radius, loop=True):
     # so we can't stack our tensors. As batch[0] could be [10, 2] and batch[1] could be [12, 2] etc.
     # TODO FIX: WE USE THE VMAP FOR GET_DENSITY, GET_DENSITY_GRADIENT etc. ITS OUTPUT DIMENSIONS ARE CONSTANT!
 
-    pairs = radius_search_vectorized(x=point_cloud_with_boundary, y=point_cloud, r=radius, max_num_neighbors=2048)
+    pairs = radius_search(x=point_cloud_with_boundary, y=point_cloud, r=radius, max_num_neighbors=2048)
 
     if not loop:
         pairs = pairs[:,pairs[0] != pairs[1]]
@@ -191,6 +192,7 @@ def get_spatial_density_gradient(point_cloud, masses, densities, kernel_grad=ker
     pairwise_difference = total_particles[j] - total_particles[i]
     pairwise_distances = torch.norm(pairwise_difference, dim=-1, keepdim=True)
     pairwise_directions = pairwise_difference / pairwise_distances
+    pairwise_directions.nan_to_num_(0.)
 
     pairwise_density_diffs = densities[j] - densities[i]
     kernel_grad = kernel_grad(pairwise_distances / smoothing_length, smoothing_length) * pairwise_directions
@@ -228,6 +230,14 @@ def get_temporal_density_gradient(point_cloud, masses, velocities, kernel_grad=k
     pairwise_difference = total_particles[j] - total_particles[i]
     pairwise_distances = torch.norm(pairwise_difference, dim=-1, keepdim=True)
     direction = pairwise_difference / pairwise_distances
+
+    # Todo: Some datasets seem to contain 1 or 2 overlapping points
+    # nan_idx = torch.isnan(direction).any(dim=-1)
+    # if nan_idx.any():
+    #     warn("Dataset contains overlapping points")
+    #     # make sure to look at the unique points. i[nan_idx] is not unique
+    #     print("Overlapping points: ", i[nan_idx], point_cloud[i[nan_idx]])
+    direction.nan_to_num_(0.)
 
     kernel_grad = kernel_grad(pairwise_distances / smoothing_length, smoothing_length)
     kernel_grad = kernel_grad * direction

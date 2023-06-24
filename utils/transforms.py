@@ -1,26 +1,34 @@
 from typing import Any
 import torch
-import torchvision.transforms as tf
 import utils.sph
 from utils.sph import *
 import pytorch_lightning as pl
+from functorch import vmap # care in pytorch 2.0 this will be torch.vmap
 
-class SampleToTensor(pl.LightningDataModule):
+class SampleToTensor(object):
     """
     Converts a sample to a tensor.
     """
 
     def __init__(self, device='cpu'):
         self.device = device
+        self.has_printed_warning = False
 
     def __call__(self, sample):
-        # torch.as_tensor() would be nicer, but the given numpy arrays are read-only, so we have to copy them
-        sample['pos'] = torch.tensor(sample['pos'], dtype=torch.float32, device=self.device)
-        sample['vel'] = torch.tensor(sample['vel'], dtype=torch.float32, device=self.device)
-        sample['viscosity'] = torch.tensor(sample['viscosity'], dtype=torch.float32, device=self.device)
-        sample['m'] = torch.tensor(sample['m'], dtype=torch.float32, device=self.device)
-        sample['box'] = torch.tensor(sample['box'], dtype=torch.int32, device=self.device)
-        sample['box_normals'] = torch.tensor(sample['box_normals'], dtype=torch.int32, device=self.device)
+        keys = ['pos', 'vel', 'viscosity', 'm', 'box', 'box_normals']
+
+        for key in keys:
+            if not isinstance(sample[key], torch.Tensor):
+                sample[key] = torch.tensor(sample[key], dtype=torch.float32, device=self.device)
+
+        sample['m'] = sample['m'].view(-1, 1)
+
+        if (sample['m'] == 0).all():
+            if not self.has_printed_warning:
+                print("WARNING: All masses are zero. Setting masses to 0.125. (This message is only shown once.)")
+                self.has_printed_warning = True
+
+            sample['m'] = torch.ones_like(sample['m']) * 0.125
 
         return sample
 
@@ -114,5 +122,27 @@ class AddTemporalDensityGradient(object):
             smoothing_length = self.smoothing_length,
             boundary_box = boundary_box
         )
+
+        return sample
+
+def normalize(x, dim = 0):
+    mean = torch.mean(x, dim=dim)
+    std = torch.std(x, dim=dim)
+    return (x - mean) / (std + 1e-8)
+
+class NormalizeDensityData(object):
+    """
+    Normalizes the density data.
+    """
+
+    def __init__(self):
+        pass
+
+    def __call__(self, sample):
+        for key in ['density', 'spatial_density_gradient', 'temporal_density_gradient']:
+            if not key in sample:
+                continue
+
+            sample[key] = normalize(sample[key])
 
         return sample

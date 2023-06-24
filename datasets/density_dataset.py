@@ -90,17 +90,11 @@ class SimulationDataset(torch.utils.data.Dataset):
                 'viscosity': data[i]['viscosity'],
                 'box':bounding_box,
                 'box_normals': bounding_box_normals,
-                # 'num_rigid_bodies': data[i]['num_rigid_bodies'],
                 'frame_id': data[i]['frame_id'],
                 'scene_id': data[i]['scene_id']
             }
 
-            if self.transform:
-                sample = self.transform(sample)
-
             samples.append(sample)
-
-        print(type(random.choice(samples))) # TODO: REMOVE THIS
 
         # TODO: MAKE IDX REFER A SPECIFIC SAMPLE IN A SPECIFIC FILE
         # CURRENTLY EACH IDX CAUSES A COMPLETE FILE TO BE LOADED

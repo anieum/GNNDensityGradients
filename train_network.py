@@ -23,12 +23,12 @@ hparams = {
     'data_split': (0.7, 0.15, 0.15),
     'batch_size': 2,
 
-    'num_training_nodes': 1, # number of nodes to train on
-    'num_workers': 0, # number of workers for dataloader
+    'num_training_nodes': 1, # number of nodes to train on (e.g. 1 GPU)
+    'num_workers': 0, # number of workers for dataloader (e.g. 2 worker threads)
 
-    'num_epochs': 5,
+    'num_epochs': 15,
     'log_every_n_steps': 1,
-    'val_every_n_epoch': 10,
+    'val_every_n_epoch': 1,
 
     # TODO: NOT YET IMPLEMENTED
     'num_features': 4,
@@ -59,7 +59,8 @@ density_data = DensityDataModule(
     batch_size = hparams['batch_size'],
     data_split = hparams['data_split'],
     num_workers = hparams['num_workers'],
-    device = model.device
+    # Note that cuda only allows 0 workers.
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 )
 density_data.setup("fit")
 
