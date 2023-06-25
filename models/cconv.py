@@ -16,9 +16,10 @@ class CConvModel(pl.LightningModule):
     """
     # see https://github.com/wi-re/torchSPHv2/blob/master/Cconv/1D/Untitled.ipynb
 
-    def __init__(self, learning_rate=1e-3):
+    def __init__(self, hparams):
         super().__init__()
-        self.learning_rate = learning_rate
+        self.hparams.update(hparams)
+        self.learning_rate = hparams['lr']
 
         self.lin_embedding = nn.Linear(4,8)
         self.cconv = ml3d.layers.ContinuousConv(
@@ -35,31 +36,15 @@ class CConvModel(pl.LightningModule):
 
     def forward(self, x):
         # features are density in the first column followed by the velocity in the next 3 columns
-        all_features_neighbors = torch.cat((x['density'], x['vel']), dim=-1)
-        all_neighbors = x['pos']  # TODO: THIS IGNORES BOUNDARIES
-        all_out_pos = x['pos']
+        features_neighbors = torch.cat((x['density'], x['vel']), dim=-1).view(-1, 4)
+        neighbors = x['pos'].view(-1, 3)  # TODO: THIS IGNORES BOUNDARIES
+        out_pos = x['pos'].view(-1, 3)  # Bug for wrong shape, probably in visualization hook
 
-        # unfortunately, this does not work. Maybe because cconv already uses the gpu internally
-        # self.cconv_parallel = vmap(self.cconv, in_dims=(0, 0, 0, None))
-        # x = self.cconv_parallel(x, neighbors, out_pos, 2.0)
-        if all_out_pos.dim() > 3:
-            print("WARNING BUG: all_out_pos.dim() > 3!!!!!!!!!!!")
-            all_features_neighbors = all_features_neighbors.squeeze(0)
-            all_neighbors = all_neighbors.squeeze(0)
-            all_out_pos = all_out_pos.squeeze(0)
+        x = self.lin_embedding(features_neighbors).float()
+        x = self.cconv(inp_features=x, inp_positions=neighbors, out_positions=out_pos, extents=2.0)
+        x = self.lin_out_mapping(x)
 
-        results = []
-        if all_out_pos.dim() > 2:
-            for features_neighbors, neighbors, out_pos in zip(all_features_neighbors, all_neighbors, all_out_pos):
-                x = self.lin_embedding(features_neighbors).float()
-                # print("SHAPES: ", x.shape, neighbors.shape, out_pos.shape)
-                x = self.cconv(inp_features=x, inp_positions=neighbors, out_positions=out_pos, extents=2.0)
-                x = self.lin_out_mapping(x)
-                results.append(x)
-        else:
-            raise Exception("Not implemented")
-
-        return torch.stack(results)
+        return x
 
 
     def configure_optimizers(self):
@@ -71,18 +56,32 @@ class CConvModel(pl.LightningModule):
 
 
     def training_step(self, train_batch, batch_idx):
-        y_pred = self(train_batch)
-        loss = F.mse_loss(y_pred, train_batch['temporal_density_gradient'])
+        # train_batch is a list of batches
+        if not isinstance(train_batch, list):
+            raise Exception("train_batch must be a list of batches")
 
-        self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
+        y_pred = [self(sample) for sample in train_batch]
+        y_target = [sample['temporal_density_gradient'] for sample in train_batch]
+
+        loss = torch.tensor(0.0, device=self.device)
+        for i in range(len(y_pred)):
+            loss += F.mse_loss(y_pred[i], y_target[i])
+        loss /= len(y_pred)
+
+        self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=self.hparams['batch_size'])
         return loss
 
 
     def validation_step(self, val_batch, batch_idx):
-        y_pred = self(val_batch)
-        loss = F.mse_loss(y_pred, val_batch['temporal_density_gradient'])
+        y_pred = [self(sample) for sample in val_batch]
+        y_target = [sample['temporal_density_gradient'] for sample in val_batch]
 
-        self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
+        loss = torch.tensor(0.0, device=self.device)
+        for i in range(len(y_pred)):
+            loss += F.mse_loss(y_pred[i], y_target[i])
+        loss /= len(y_pred)
+
+        self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=self.hparams['batch_size'])
 
 
 

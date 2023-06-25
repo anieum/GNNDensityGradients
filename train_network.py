@@ -22,7 +22,7 @@ import os
 hparams = {
     'dataset_dir': 'datasets/data/dpi_dam_break/train',
     'data_split': (0.7, 0.15, 0.15),
-    'batch_size': 1, # IF BATCHSIZE != 1, torch.stack() will fail when composing the batch, as the particle count differs between samples
+    'batch_size': 30, # IF BATCHSIZE != 1, torch.stack() will fail when composing the batch, as the particle count differs between samples
     'shuffle': False,
     'cache': True, # Load dataset into memory
 
@@ -55,7 +55,7 @@ hparams['dataset_dir'] = os.path.abspath(hparams['dataset_dir'])
 
 # Model
 # TODO: https://lightning.ai/docs/pytorch/stable/common/checkpointing_basic.html
-model = CConvModel()
+model = CConvModel(hparams)
 
 # Datasets
 density_data = DensityDataModule(

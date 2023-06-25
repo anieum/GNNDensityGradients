@@ -45,6 +45,7 @@ class SimulationDataset(torch.utils.data.Dataset):
         self.transform = transform
         self.transform_once = transform_once
         self.device = device
+        self.has_printed_warning = False
 
         # File handling
         files.sort() # this is essential. If the number of files if off things won't work
@@ -123,10 +124,15 @@ class SimulationDataset(torch.utils.data.Dataset):
             if sample[key].shape[-1] != 1 and sample[key].shape[-1] != 3:
                 sample[key] = sample[key].view(-1, 1)
 
-        if sample['pos'].dim() != 2 or sample['vel'].dim() != 2:
-            raise Exception("pos and vel must be 2-dimensional")
+
+        if (sample['m'] == 0).all():
+            if not self.has_printed_warning:
+                print("WARNING: All masses are zero. Setting masses to 0.125. (This message is only shown once.)")
+                self.has_printed_warning = True
+
+            sample['m'] = torch.ones_like(sample['m']) * 0.125
 
         if self.transform_once:
-            return self.transform_once(sample)
-        else:
-            return sample
+            sample = self.transform_once(sample)
+
+        return sample

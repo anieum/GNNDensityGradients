@@ -108,7 +108,7 @@ def visualize_model_fig(model,
     random_sample = dataset.__getitem__(idx)
 
     # Move sample to correct device, remove batch dimension and move to cpu for plotly
-    transform_sample(random_sample, lambda x: x.clone().unsqueeze(0).to(model.device))
+    transform_sample(random_sample, lambda x: x.clone().to(model.device))
     result = model(random_sample).cpu()
     transform_sample(random_sample, lambda x: x.cpu())
 

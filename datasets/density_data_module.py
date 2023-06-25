@@ -34,10 +34,17 @@ class DensityDataModule(pl.LightningDataModule):
 
         self.transform_once = tf.Compose([
             AddDensity(include_box=False),
-            AddSpatialDensityGradient(include_box=False),
+            # AddSpatialDensityGradient(include_box=False),
             AddTemporalDensityGradient(include_box=False),
             NormalizeDensityData(),
         ])
+
+    def _collate_identity(self, x):
+        if not isinstance(x, list):
+            raise Exception("x must be a list")
+
+        # check if for each element['pos'] in the list, the dimensions are 2
+        return x
 
 
     def setup(self, stage: str):
@@ -61,16 +68,16 @@ class DensityDataModule(pl.LightningDataModule):
         self.dataset = dataset
 
     def train_dataloader(self):
-        return DataLoader(self.dataset["train"], batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
+        return DataLoader(self.dataset["train"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
 
     def val_dataloader(self):
-        return DataLoader(self.dataset["eval"], batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
+        return DataLoader(self.dataset["eval"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
 
     def test_dataloader(self):
-        return DataLoader(self.dataset["test"], batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
+        return DataLoader(self.dataset["test"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
 
     def predict_dataloader(self):
-        return DataLoader(self.dataset["eval"], batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
+        return DataLoader(self.dataset["eval"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
 
     def teardown(self, stage: str):
         pass
