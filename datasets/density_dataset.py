@@ -21,7 +21,7 @@ class SimulationDataset(torch.utils.data.Dataset):
     #  Possible transforms for us: normalize, rotate, jitter, inject density
 
     # TODO: Add source notice
-    def __init__(self, files, shuffle_in_files=False, max_per_file=-1, window=1, transform=None):
+    def __init__(self, files, shuffle_in_files=False, max_per_file=-1, window=1, transform=None, in_memory=False):
         """
         Initialize the dataset from a list of compressed partio files.
 
@@ -46,13 +46,31 @@ class SimulationDataset(torch.utils.data.Dataset):
         self.max_per_file = max_per_file
         self.transform = transform
 
+        self.in_memory = in_memory
+        self.files_mem = []
+
+        if in_memory:
+            print("Loading dataset into memory")
+            for file in self.files:
+                decompressor = zstd.ZstdDecompressor()
+                with open(file, 'rb') as f:
+                    data = msgpack.unpackb(decompressor.decompress(f.read()), raw=False)
+                    self.files_mem.append(data)
+
+            print("Done loading dataset into memory")
+
+
+
     def __getitem__(self, idx):
         # for each idx return a file!
-        decompressor = zstd.ZstdDecompressor()
-        file_idx = idx
 
-        with open(self.files[file_idx], 'rb') as f:
-            data = msgpack.unpackb(decompressor.decompress(f.read()), raw=False)
+        data = None
+        if not self.in_memory:
+            decompressor = zstd.ZstdDecompressor()
+            with open(self.files[idx], 'rb') as f:
+                data = msgpack.unpackb(decompressor.decompress(f.read()), raw=False)
+        else:
+            data = self.files_mem[idx]
 
         # A single file has e.g. 10 timesteps or more.
         # This is a problem, because we want to return single samples
