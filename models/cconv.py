@@ -42,6 +42,11 @@ class CConvModel(pl.LightningModule):
         # unfortunately, this does not work. Maybe because cconv already uses the gpu internally
         # self.cconv_parallel = vmap(self.cconv, in_dims=(0, 0, 0, None))
         # x = self.cconv_parallel(x, neighbors, out_pos, 2.0)
+        if all_out_pos.dim() > 3:
+            print("WARNING BUG: all_out_pos.dim() > 3!!!!!!!!!!!")
+            all_features_neighbors = all_features_neighbors.squeeze(0)
+            all_neighbors = all_neighbors.squeeze(0)
+            all_out_pos = all_out_pos.squeeze(0)
 
         results = []
         if all_out_pos.dim() > 2:
