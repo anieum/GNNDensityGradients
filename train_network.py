@@ -7,6 +7,7 @@ from torchvision import transforms
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import \
     ModelCheckpoint, EarlyStopping, LearningRateFinder, LearningRateMonitor, RichModelSummary
+from utils.train_helper import find_learning_rate
 from utils.callbacks import *
 
 from models.cconv import CConvModel
@@ -26,9 +27,9 @@ hparams = {
     'num_training_nodes': 1, # number of nodes to train on (e.g. 1 GPU)
     'num_workers': 0, # number of workers for dataloader (e.g. 2 worker threads)
 
-    'num_epochs': 30,
+    'num_epochs': 250,
     'log_every_n_steps': 1,
-    'val_every_n_epoch': 1,
+    'val_every_n_epoch': 10,
 
     # TODO: NOT YET IMPLEMENTED
     'num_features': 4,
@@ -68,6 +69,7 @@ density_data.setup("fit")
 callbacks = [
     VisualizePredictionCallback(model=model, dataset=density_data.dataset['train'], dataset_type="train"),
     VisualizePredictionCallback(model=model, dataset=density_data.dataset['eval'], dataset_type="eval"),
+    LearningRateMonitor(logging_interval='step'),
     # ActivationHistogramCallback(model=model)
 ]
 
@@ -79,6 +81,7 @@ trainer = pl.Trainer(
     callbacks = callbacks,
 )
 
+model.learning_rate = find_learning_rate(trainer, model, density_data)
 trainer.fit(model=model, datamodule=density_data)
 
 

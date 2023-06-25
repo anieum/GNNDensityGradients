@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import numpy as np
 from plotly.subplots import make_subplots
 from torch.nn.functional import mse_loss
+import matplotlib
 
 
 def plot_particles(positions, color=None, colorscale = 'Viridis'):
@@ -155,14 +156,21 @@ def visualize_model(model,
 
 def fig_to_tensor(fig):
     """
-    Converts a plotly figure to a tensor. This is useful for logging to tensorboard.
+    Converts a plotly or matplotlib figure to a tensor. This is useful for logging to tensorboard.
     """
-
+    # check if figure is mathplotlib or plotly
     import io
     from PIL import Image
     from torchvision import transforms
-    bytes_image = fig.to_image(format="png")
-    image = Image.open(io.BytesIO(bytes_image))
+
+    if isinstance(fig, matplotlib.figure.Figure):
+        bytes_image = io.BytesIO()
+        fig.savefig(bytes_image, format="png")
+        bytes_image.seek(0)
+    else:
+        bytes_image = io.BytesIO(fig.to_image(format="png"))
+
+    image = Image.open(bytes_image)
     image = transforms.ToTensor()(image)
     return image
 

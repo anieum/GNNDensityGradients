@@ -16,8 +16,9 @@ class CConvModel(pl.LightningModule):
     """
     # see https://github.com/wi-re/torchSPHv2/blob/master/Cconv/1D/Untitled.ipynb
 
-    def __init__(self):
+    def __init__(self, learning_rate=1e-3):
         super().__init__()
+        self.learning_rate = learning_rate
 
         self.lin_embedding = nn.Linear(4,8)
         self.cconv = ml3d.layers.ContinuousConv(
@@ -58,7 +59,7 @@ class CConvModel(pl.LightningModule):
 
     def configure_optimizers(self):
         # todo: configure scheduler
-        optimizer = Adam(self.parameters(), lr=1e-3)
+        optimizer = Adam(self.parameters(), lr=self.learning_rate)
         #scheduler = ReduceLROnPlateau(optimizer, ...)
         #return [optimizer], [scheduler]
         return optimizer
