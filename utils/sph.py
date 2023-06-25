@@ -80,7 +80,7 @@ def set_smoothing_length(h):
 
 set_kernel(apply_cubic_kernel_torch)
 set_kernel_grad(apply_cubic_kernel_derivative_torch)
-set_smoothing_length(0.3)
+set_smoothing_length(0.04984372318264361)
 
 def get_neighbors(point_cloud, point_cloud_with_boundary, radius, loop=True):
     """

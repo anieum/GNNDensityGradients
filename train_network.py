@@ -32,7 +32,7 @@ hparams = {
 
     'num_epochs': 20,
     'log_every_n_steps': 1,
-    'val_every_n_epoch': 10,
+    'val_every_n_epoch': 2,
 
     # TODO: NOT YET IMPLEMENTED
     'num_features': 4,

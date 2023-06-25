@@ -25,7 +25,7 @@ class CConvModel(pl.LightningModule):
         self.cconv = ml3d.layers.ContinuousConv(
 		    in_channels=8,
             filters=16,
-	        kernel_size=[3,3,3],
+	        kernel_size=[2,2,2],
             activation=nn.ReLU(),
             align_corners=True,
             normalize=False,
@@ -41,7 +41,7 @@ class CConvModel(pl.LightningModule):
         out_pos = x['pos'].view(-1, 3)  # Bug for wrong shape, probably in visualization hook
 
         x = self.lin_embedding(features_neighbors).float()
-        x = self.cconv(inp_features=x, inp_positions=neighbors, out_positions=out_pos, extents=2.0)
+        x = self.cconv(inp_features=x, inp_positions=neighbors, out_positions=out_pos, extents=0.6)
         x = self.lin_out_mapping(x)
 
         return x
