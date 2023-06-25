@@ -1,4 +1,6 @@
-lightning_logs/ # tensorboard logs
+# tensorboard logs
+lightning_logs/
+lightning_logs/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
