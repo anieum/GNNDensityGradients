@@ -7,6 +7,7 @@ import numpy as np
 import pytorch_lightning as pl
 import open3d.ml.torch as ml3d
 from functorch import vmap # care in pytorch 2.0 this will be torch.vmap
+import torch.nn.functional as F
 
 
 class CConvModel(pl.LightningModule):
@@ -15,6 +16,7 @@ class CConvModel(pl.LightningModule):
 
     :param hparams: hyperparameters for the model  (TODO)
     """
+    # see https://github.com/isl-org/DeepLagrangianFluids/blob/master/models/default_torch.py
     # see https://github.com/wi-re/torchSPHv2/blob/master/Cconv/1D/Untitled.ipynb
 
     def __init__(self, hparams):
@@ -23,7 +25,7 @@ class CConvModel(pl.LightningModule):
         self.learning_rate = hparams['lr']
         self.layer_channels = [32, 64, 64, 3]
         self.conv_hprams = {
-            'kernel_size': [4, 4, 4],
+            'kernel_size': torch.tensor([4, 4, 4], device=self.device),
             'activation': None,
             'align_corners': True,
             'interpolation': 'linear',
@@ -31,10 +33,11 @@ class CConvModel(pl.LightningModule):
             'normalize': False,
             'window_function': None,
             'radius_search_ignore_query_points': True,
-            'other_feats_channels': 0
+            'other_feats_channels': 1  # 1 because we include density
         }
         self.particle_radius = 0.025
-        self.filter_extent = np.float32(self.radius_scale * 6 * self.particle_radius)
+        self.radius_scale = 1.5
+        self.filter_extent = float(self.radius_scale * 6 * self.particle_radius)
 
         self.use_window = True
         self.layers = self._setup_layers()
@@ -84,7 +87,7 @@ class CConvModel(pl.LightningModule):
                 activation=None
             )
 
-        # Convolutional layer to handle obstacles channels, maybe (pos_0, pos_1, pos_2)?
+        # Convolutional layer to handle obstacles channels, (normal_0, normal_1, normal_2) <- this is a 1 hot vector
         conv0_obstacle = self._make_cconv_layer(
                 name="conv0_obstacle",
                 in_channels=3,
@@ -128,10 +131,11 @@ class CConvModel(pl.LightningModule):
 
     def forward(self, sample):
         """
+        Forward pass of the network.
+
         :param sample: dict with keys 'pos', 'vel', 'density', 'temporal_density_gradient'
         :return: predicted temporal density gradient
         """
-        pos = sample['pos']
 
         # (conv0_fluid, conv0_obstacle, dense0_fluid), (dense1, conv1), (dense2, conv2), (dense3, conv3)
         conv_fluid = self.layers[0][0]
@@ -140,38 +144,42 @@ class CConvModel(pl.LightningModule):
 
         # Get features in correct shape
         # fluid_features (1, vel_0, vel_1, vel_2, density, other_feats)
-        # box features (pos_0, pos_1, pos_2)
+        # box features (normal_0, normal_1, normal_2) <- this is a 1 hot vector
         fluid_features = torch.cat(
                 (torch.ones_like(sample['density']), sample['vel'], sample['density']), dim=-1
-            ).view(-1, 4 + self.conv_hprams['other_feats_channels'])
-
-        obstacle_features = sample['pos'].view(-1, 3) # TODO: THIS IS WRONG, WHAT DOES THE PAPER USE AS FEATURES?
+        ).view(-1, 4 + self.conv_hprams['other_feats_channels'])
 
         # Calculate first layer activations
-        x1 = conv_fluid(inp_features=fluid_features, inp_positions=pos, out_positions=pos, extents=self.filter_extent)
-        x2 = conv_obstacle(inp_features=obstacle_features, inp_positions=pos, out_positions=pos, extents=self.filter_extent)
+        #pos = torch.concat((sample['pos'], sample['box']), dim=0)
+        pos = sample['pos']
+        x1 = conv_fluid(inp_features=fluid_features.float(), inp_positions=pos, out_positions=pos, extents=self.filter_extent)
+        x2 = conv_obstacle(inp_features=sample['box_normals'], inp_positions=sample['box'], out_positions=pos, extents=self.filter_extent)
         x3 = dense_fluid(fluid_features)
 
         x = torch.cat((x1, x2, x3), dim=-1)
 
-        x = sample
+        # Calculate activations for subsequent layers
         for layer in self.layers[1:]:
-            x = self._forward_layer(x, layer)
+            # layer is a list of layer objects that build the layer (and their name)
+            x = F.relu(x)
 
+            dense_x = None
+            conv_x = None
+            for concrete_layer in layer:
+                if isinstance(concrete_layer, torch.nn.Linear):
+                    dense_x = concrete_layer(x)
+                else:
+                    conv_x = concrete_layer(inp_features=x, inp_positions=pos, out_positions=pos, extents=self.filter_extent)
 
-        return x
+            # Itermediate layers have a residual connection
+            if x.shape[-1] == dense_x.shape[-1]: # if shape unchanged
+                x = conv_x + dense_x + x # residual connection
+            else:
+                x = conv_x + dense_x
 
-    def _forward_old(self, x):
-        # features are density in the first column followed by the velocity in the next 3 columns
-        features_neighbors = torch.cat((x['density'], x['vel']), dim=-1).view(-1, 4)
-        neighbors = x['pos'].view(-1, 3)  # TODO: THIS IGNORES BOUNDARIES
-        out_pos = x['pos'].view(-1, 3)  # Bug for wrong shape, probably in visualization hook
-
-        x = self.lin_embedding(features_neighbors).float()
-        x = self.cconv(inp_features=x, inp_positions=neighbors, out_positions=out_pos, extents=0.6)
-        x = self.lin_out_mapping(x)
-
-        return x
+        # the factor is used in the original paper to better match the target value distribution
+        # for density, a different or no factor might be better
+        return (1.0 / 128) * x
 
 
     def configure_optimizers(self):
@@ -211,4 +219,10 @@ class CConvModel(pl.LightningModule):
         self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=self.hparams['batch_size'])
 
 
+    def to(self, device):
+        super().to(device)
+        for layer in self.layers:
+            for concrete_layer in layer:
+                concrete_layer.to(device)
 
+        return self
