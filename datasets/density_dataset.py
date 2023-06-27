@@ -127,10 +127,10 @@ class SimulationDataset(torch.utils.data.Dataset):
 
         if (sample['m'] == 0).all():
             if not self.has_printed_warning:
-                print("WARNING: All masses are zero. Setting masses to 0.125. (This message is only shown once.)")
+                print("WARNING: All masses are zero. Setting masses to 2 * 0.06544984694978737. (This message is only shown once.)")
                 self.has_printed_warning = True
 
-            sample['m'] = torch.ones_like(sample['m']) * 0.125
+            sample['m'] = torch.ones_like(sample['m']) * 0.06544984694978736 * 2
 
         if self.transform_once:
             sample = self.transform_once(sample)

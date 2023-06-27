@@ -7,7 +7,7 @@ from torch.nn.functional import mse_loss
 import matplotlib
 
 
-def plot_particles(positions, color=None, colorscale = 'Viridis'):
+def plot_particles(positions, color=None, title=None, colorscale = 'Viridis', return_fig = False):
     """
     Plots the positions in a 3D scatter plot.
     """
@@ -36,7 +36,54 @@ def plot_particles(positions, color=None, colorscale = 'Viridis'):
         marker=marker
     )])
 
+    if title is not None:
+        fig.update_layout(title=title)
+
+    if return_fig:
+        return fig
+    else:
+        fig.show()
+
+
+def plot_sample(sample, height = 400, width = 1250):
+    s = sample
+
+    keys = ['pos', 'density', 'temporal_density_gradient', 'spatial_density_gradient']
+    key_to_title = {
+        'pos': 'Position',
+        'density': 'Density',
+        'temporal_density_gradient': 'Temporal Density Gradient',
+        'spatial_density_gradient': 'Spatial Density Gradient'
+    }
+
+    number_of_keys_in_sample = sum([key in s for key in keys])
+
+    figs = []
+    if 'vel' in s:
+        figs.append(plot_particles(s['pos'], torch.norm(s['vel'], dim=-1), colorscale='Viridis', return_fig=True))
+
+    if 'density' in s:
+        figs.append(plot_particles(s['pos'], s['density'], colorscale='Plasma', return_fig=True))
+
+    if 'temporal_density_gradient' in s:
+        figs.append(plot_particles(s['pos'], s['temporal_density_gradient'], colorscale='thermal', return_fig=True))
+
+    if 'spatial_density_gradient' in s:
+        figs.append(plot_particles(s['pos'], torch.norm(s['spatial_density_gradient'], dim=-1), colorscale='magma', return_fig=True))
+
+
+    types = [f.data[0].type for f in figs]
+    specs_dict = [{'type': t} for t in types]
+    titles = [key_to_title[key] for key in keys if key in s]
+    fig = make_subplots(rows=1, cols=number_of_keys_in_sample, specs=[specs_dict], subplot_titles=titles)
+
+    for i, f in enumerate(figs):
+        fig.add_trace(f.data[0], row=1, col=i+1)
+        fig.data[i].name = titles[i][:20]
+
+    fig.update_layout(height=height, width=width)
     fig.show()
+
 
 
 # Build grid with all particles

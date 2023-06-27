@@ -36,8 +36,13 @@ class VtkDataset(torch.utils.data.Dataset):
             # concatenate features
             densities = torch.tensor(mesh.point_data["density"])
             velocities = torch.tensor(mesh.point_data["velocity"])
-            density_gradients = torch.tensor(mesh.point_data["density_grad"])
-            
+
+            if "density_grad" in mesh.point_data:
+                density_gradients = torch.tensor(mesh.point_data["density_grad"])
+            else:
+                print("No density gradient. Using 1 as default value.")
+                density_gradients = torch.tensor(mesh.point_data["density"])
+
             if normalize:
                 densities = self.normalize(densities)
                 velocities = self.normalize(velocities)
@@ -53,7 +58,7 @@ class VtkDataset(torch.utils.data.Dataset):
             # for density, velocity, point in zip(densities, velocities, points):
             #     sample = (density, velocity, point, file_idx)
             #     self.data.append(sample)
-            
+
             self.target.append(density_gradients)
 
             self.n_points += mesh.n_points
@@ -85,10 +90,10 @@ class VtkDataset(torch.utils.data.Dataset):
 
         return (features_neighbors, neighbors, position), self.target[file_idx][idx]
         # return (data, density, point, self.points_per_file[file_idx]), self.target[idx]
-    
+
     def add_noise(self, noise):
         raise Exception("TODO: Implement noise")
-    
+
     def normalize(self, data):
         mean = torch.mean(data)
         std = torch.std(data)
