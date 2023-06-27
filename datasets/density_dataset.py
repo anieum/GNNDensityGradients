@@ -48,7 +48,7 @@ class SimulationDataset(torch.utils.data.Dataset):
         self.has_printed_warning = False
 
         # File handling
-        files.sort() # this is essential. If the number of files if off things won't work
+        files.sort() # this is essential. The filemap assumes that the files are sorted.
         self.files = [os.path.abspath(f) for f in files]
         self.directory = os.path.dirname(self.files[0])
         self.filemap = load_idx_to_file_map(self.directory)
@@ -69,6 +69,7 @@ class SimulationDataset(torch.utils.data.Dataset):
 
                 for i in range(len(file_content)):
                     file_content[i]['box'] = file_content[0]['box']
+                    file_content[i]['box_normals'] = file_content[0]['box_normals']
                     sample = self._prepare_sample(file_content[i])
                     self.cache.append(sample)
 
@@ -88,6 +89,7 @@ class SimulationDataset(torch.utils.data.Dataset):
 
             data = self._get_file_content(os.path.join(self.directory, file_name))
             data[in_file_idx]['box'] = data[0]['box']
+            data[in_file_idx]['box_normals'] = data[0]['box_normals']
             sample = self._prepare_sample(data[in_file_idx])
 
         if self.transform:
@@ -114,10 +116,10 @@ class SimulationDataset(torch.utils.data.Dataset):
         """
 
         sample = {}
-        for key in ['pos', 'vel', 'm', 'viscosity', 'box']:
+        for key in ['pos', 'vel', 'm', 'viscosity', 'box', 'box_normals']:
             sample[key] = raw_sample[key]
 
-            if not isinstance(sample[key], torch.Tensor):
+            if not isinstance(sample[key], torch.Tensor) or sample[key].device != self.device:
                 sample[key] = torch.tensor(sample[key], dtype=torch.float32, device=self.device)
 
             # if last dimension is not 1 or 3, add it

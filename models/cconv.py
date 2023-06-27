@@ -19,6 +19,7 @@ class CConvModel(pl.LightningModule):
     # see https://github.com/isl-org/DeepLagrangianFluids/blob/master/models/default_torch.py
     # see https://github.com/wi-re/torchSPHv2/blob/master/Cconv/1D/Untitled.ipynb
 
+
     def __init__(self, hparams):
         super().__init__()
         self.hparams.update(hparams)
@@ -46,6 +47,7 @@ class CConvModel(pl.LightningModule):
     def _window_poly6(r_sqr):
         return torch.clamp((1 - r_sqr)**3, 0, 1)
 
+
     def _make_cconv_layer(self, name, activation=None, **kwargs):
         window_fn = None
         if self.use_window == True:
@@ -65,6 +67,7 @@ class CConvModel(pl.LightningModule):
 
         return cconv_layer
 
+
     def _setup_layers(self):
         """
         Creates the layers of the network: 3 parallel input layers, then for each given layer_channel a dense layer and
@@ -77,8 +80,6 @@ class CConvModel(pl.LightningModule):
         """
 
         # Input layer of networks (3 parallel layers) -----------------------------------------------
-        layers = [[] for _ in range(len(self.layer_channels))]
-
         # Convolutional layer to handle fluids channels (1, vel_0, vel_1, vel_2, density, other_feats)
         conv0_fluid = self._make_cconv_layer(
                 name="conv0_fluid",
@@ -103,9 +104,8 @@ class CConvModel(pl.LightningModule):
         torch.nn.init.xavier_uniform_(dense0_fluid.weight)
         torch.nn.init.zeros_(dense0_fluid.bias)
 
-        layers[0].append(conv0_fluid)
-        layers[0].append(conv0_obstacle)
-        layers[0].append(dense0_fluid)
+        layers = []
+        layers.append((conv0_fluid, conv0_obstacle, dense0_fluid))
 
         # Intermediate layers of networks -----------------------------------------------------------
         actual_layer_channels = self.layer_channels
@@ -124,10 +124,10 @@ class CConvModel(pl.LightningModule):
                 activation=None
             )
 
-            layers[layer].append(dense_layer)
-            layers[layer].append(conv_layer)
+            layers.append((dense_layer, conv_layer))
 
         return layers
+
 
     def forward(self, sample):
         """
@@ -138,13 +138,10 @@ class CConvModel(pl.LightningModule):
         """
 
         # (conv0_fluid, conv0_obstacle, dense0_fluid), (dense1, conv1), (dense2, conv2), (dense3, conv3)
-        conv_fluid = self.layers[0][0]
-        conv_obstacle = self.layers[0][1]
-        dense_fluid = self.layers[0][2]
+        conv_fluid, conv_obstacle, dense_fluid = self.layers[0]
 
         # Get features in correct shape
         # fluid_features (1, vel_0, vel_1, vel_2, density, other_feats)
-        # box features (normal_0, normal_1, normal_2) <- this is a 1 hot vector
         fluid_features = torch.cat(
                 (torch.ones_like(sample['density']), sample['vel'], sample['density']), dim=-1
         ).view(-1, 4 + self.conv_hprams['other_feats_channels'])
@@ -159,17 +156,12 @@ class CConvModel(pl.LightningModule):
         x = torch.cat((x1, x2, x3), dim=-1)
 
         # Calculate activations for subsequent layers
-        for layer in self.layers[1:]:
+        for dense_layer, conv_layer in self.layers[1:]:
             # layer is a list of layer objects that build the layer (and their name)
             x = F.relu(x)
 
-            dense_x = None
-            conv_x = None
-            for concrete_layer in layer:
-                if isinstance(concrete_layer, torch.nn.Linear):
-                    dense_x = concrete_layer(x)
-                else:
-                    conv_x = concrete_layer(inp_features=x, inp_positions=pos, out_positions=pos, extents=self.filter_extent)
+            dense_x = dense_layer(x)
+            conv_x = conv_layer(inp_features=x, inp_positions=pos, out_positions=pos, extents=self.filter_extent)
 
             # Itermediate layers have a residual connection
             if x.shape[-1] == dense_x.shape[-1]: # if shape unchanged
@@ -222,7 +214,7 @@ class CConvModel(pl.LightningModule):
     def to(self, device):
         super().to(device)
         for layer in self.layers:
-            for concrete_layer in layer:
-                concrete_layer.to(device)
+            for sublayer in layer:
+                sublayer.to(device)
 
         return self
