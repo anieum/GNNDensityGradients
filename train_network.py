@@ -20,6 +20,8 @@ import os
 
 
 hparams = {
+    'load_checkpoint': False,
+
     'dataset_dir': 'datasets/data/dpi_dam_break/train',
     'data_split': (0.7, 0.15, 0.15),
     'batch_size': 30, # IF BATCHSIZE != 1, torch.stack() will fail when composing the batch, as the particle count differs between samples
@@ -30,9 +32,9 @@ hparams = {
     'num_training_nodes': 1, # number of nodes to train on (e.g. 1 GPU)
     'num_workers': 0, # number of workers for dataloader (e.g. 2 worker threads)
 
-    'num_epochs': 15,
+    'num_epochs': 30,
     'log_every_n_steps': 1,
-    'val_every_n_epoch': 1,
+    'val_every_n_epoch': 3,
 
     # TODO: NOT YET IMPLEMENTED
     'num_features': 4,
@@ -86,6 +88,12 @@ trainer = pl.Trainer(
     check_val_every_n_epoch = hparams['val_every_n_epoch'],
     callbacks = callbacks,
 )
+
+# TODO: Implement checkpoints
+if hparams['load_checkpoint']:
+    raise Exception("Not yet implemented")
+    model = CConvModel(hparams)
+    trainer.resume_from_checkpoint(model, ckpt_path=hparams['load_path'])
 
 # DISABLED, the resulting learning rate is way too low
 # model.learning_rate = find_learning_rate(trainer, model, density_data)
