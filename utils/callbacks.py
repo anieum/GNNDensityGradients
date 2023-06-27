@@ -1,6 +1,6 @@
 import torch
 import open3d.ml.torch.python as ml3dp
-from utils.visualization import visualize_model_fig, fig_to_tensor, SaveOutputHandler
+from utils.visualization import visualize_model_fig, fig_to_tensor, SaveOutputHandler, plot_sample_for_tensorboard
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
@@ -39,6 +39,30 @@ class VisualizePredictionCallback(Callback):
 
     def on_fit_end(self, trainer, pl_module):
         print("Visualizing", self.dataset_type)
+        self.generate_images(trainer, pl_module, self.dataset)
+
+
+class VisulizePrediction3DCallback(Callback):
+
+    def __init__(self, model, dataset, dataset_type="train"):
+        super().__init__()
+        self.model = model
+        self.dataset = dataset
+        self.dataset_type = dataset_type
+
+    def generate_images(self, trainer, model, dataset):
+        tensorboard = trainer.logger.experiment
+
+        result = fig_to_tensor(plot_sample_for_tensorboard(model, dataset))
+        tensorboard.add_image(f"results/{self.dataset_type}_3d", result, global_step=trainer.global_step)
+
+    def on_fit_start(self, trainer, pl_module):
+        # Todo: Once this works, only on fit end
+        print("Visualizing", self.dataset_type, "3D")
+        self.generate_images(trainer, pl_module, self.dataset)
+
+    def on_fit_end(self, trainer, pl_module):
+        print("Visualizing", self.dataset_type, "3D")
         self.generate_images(trainer, pl_module, self.dataset)
 
 

@@ -44,16 +44,25 @@ def plot_particles(positions, color=None, title=None, colorscale = 'Viridis', re
     else:
         fig.show()
 
+def plot_sample_for_tensorboard(model, dataset):
+    random_sample, result = forward_random_sample(model, dataset)
+    random_sample['temporal_predicted_gradient'] = result.reshape(-1, 1)
+    # random_sample['spatial_predicted_gradient'] = torch.norm(result, dim=-1).reshape(-1, 1)
+    random_sample.pop('vel')
 
-def plot_sample(sample, height = 400, width = 1250):
+    return plot_sample(random_sample, return_fig=True)
+
+def plot_sample(sample, height = 400, width = 1250, return_fig = False):
     s = sample
 
-    keys = ['pos', 'density', 'temporal_density_gradient', 'spatial_density_gradient']
+    keys = ['vel', 'density', 'temporal_density_gradient', 'spatial_density_gradient', 'temporal_predicted_gradient', 'spatial_predicted_gradient']
     key_to_title = {
-        'pos': 'Position',
+        'pos': 'Velocity',
         'density': 'Density',
         'temporal_density_gradient': 'Temporal Density Gradient',
-        'spatial_density_gradient': 'Spatial Density Gradient'
+        'spatial_density_gradient': 'Spatial Density Gradient',
+        'temporal_predicted_gradient': 'Temporal Predicted Gradient',
+        'spatial_predicted_gradient': 'Spatial Predicted Gradient',
     }
 
     number_of_keys_in_sample = sum([key in s for key in keys])
@@ -71,6 +80,11 @@ def plot_sample(sample, height = 400, width = 1250):
     if 'spatial_density_gradient' in s:
         figs.append(plot_particles(s['pos'], torch.norm(s['spatial_density_gradient'], dim=-1), colorscale='magma', return_fig=True))
 
+    if 'temporal_predicted_gradient' in s:
+        figs.append(plot_particles(s['pos'], s['temporal_predicted_gradient'], colorscale='thermal', return_fig=True))
+
+    if 'spatial_predicted_gradient' in s:
+        figs.append(plot_particles(s['pos'], torch.norm(s['spatial_predicted_gradient'], dim=-1), colorscale='magma', return_fig=True))
 
     types = [f.data[0].type for f in figs]
     specs_dict = [{'type': t} for t in types]
@@ -82,8 +96,11 @@ def plot_sample(sample, height = 400, width = 1250):
         fig.data[i].name = titles[i][:20]
 
     fig.update_layout(height=height, width=width)
-    fig.show()
 
+    if return_fig:
+        return fig
+    else:
+        fig.show()
 
 
 # Build grid with all particles
@@ -143,6 +160,22 @@ def transform_batch(batch, transform):
     return batch
 
 
+def forward_random_sample(model, dataset):
+    """
+    Returns a random sample from the dataset.
+    """
+    idx = np.random.randint(0, len(dataset))
+    random_sample = dataset.__getitem__(idx).copy()
+
+    # Move sample to correct device, remove batch dimension and move to cpu for plotly
+    transform_sample(random_sample, lambda x: x.clone().to(model.device))
+    result = model(random_sample).cpu()
+    transform_sample(random_sample, lambda x: x.cpu())
+    return random_sample, result.detach().numpy()
+
+
+
+
 def visualize_model_fig(model,
                     dataset,
                     same_color_axis = False,
@@ -151,17 +184,13 @@ def visualize_model_fig(model,
                     width = 1000,
                     height = 450):
     # Pick a random sample in the dataset and visualize it
-    idx = np.random.randint(0, len(dataset))
-    random_sample = dataset.__getitem__(idx)
-
-    # Move sample to correct device, remove batch dimension and move to cpu for plotly
-    transform_sample(random_sample, lambda x: x.clone().to(model.device))
-    result = model(random_sample).cpu()
-    transform_sample(random_sample, lambda x: x.cpu())
+    random_sample, result = forward_random_sample(model, dataset)
+    if result.shape[-1] == 3:
+            raise Exception("Model output has 3 channels. This is not supported.")
 
     # Order data in grids
     grid_data = get_grid(random_sample['density'].detach().numpy())
-    grid_result = get_grid(result.detach().numpy())
+    grid_result = get_grid(result)
     grid_target = get_grid(random_sample['temporal_density_gradient'].detach().numpy())
 
     # https://stackoverflow.com/a/58853985
@@ -179,7 +208,7 @@ def visualize_model_fig(model,
         fig.add_trace(go.Heatmap(z=grid_result), row=1, col=3)
 
     # Add MSE loss
-    loss = mse_loss(result, random_sample['temporal_density_gradient'])
+    loss = mse_loss(torch.tensor(result).view(-1, 1), random_sample['temporal_density_gradient'])
 
     if title is None:
         fig.update_layout(title_text=f"Random batch MSE: {loss.item():.4f}")

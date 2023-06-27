@@ -24,7 +24,7 @@ class CConvModel(pl.LightningModule):
         super().__init__()
         self.hparams.update(hparams)
         self.learning_rate = hparams['lr']
-        self.layer_channels = [32, 64, 64, 3]
+        self.layer_channels = [32, 64, 64, 1]
         self.conv_hprams = {
             'kernel_size': torch.tensor([4, 4, 4], device=self.device),
             'activation': None,
@@ -42,6 +42,9 @@ class CConvModel(pl.LightningModule):
 
         self.use_window = True
         self.layers = self._setup_layers()
+
+        # register layers as parameters, so built-in pytorch functions like .parameters() and .to() work
+        self.param_list = torch.nn.ParameterList([sublayer for layer in self.layers for sublayer in layer])
 
 
     def _window_poly6(r_sqr):
@@ -157,21 +160,18 @@ class CConvModel(pl.LightningModule):
 
         # Calculate activations for subsequent layers
         for dense_layer, conv_layer in self.layers[1:]:
-            # layer is a list of layer objects that build the layer (and their name)
+            # between layers and only between layers, apply relu
             x = F.relu(x)
 
             dense_x = dense_layer(x)
             conv_x = conv_layer(inp_features=x, inp_positions=pos, out_positions=pos, extents=self.filter_extent)
 
-            # Itermediate layers have a residual connection
-            if x.shape[-1] == dense_x.shape[-1]: # if shape unchanged
-                x = conv_x + dense_x + x # residual connection
-            else:
-                x = conv_x + dense_x
+            # If shape unchanged, add residual connection. (This happens in intermediate layers, not e.g. in the first layer)
+            x = conv_x + dense_x + x if x.shape[-1] == dense_x.shape[-1] else conv_x + dense_x
 
-        # the factor is used in the original paper to better match the target value distribution
-        # for density, a different or no factor might be better
-        return (1.0 / 128) * x
+        # the original paper uses (1.0 / 128) as factor to better match the target value distribution
+        # we replace this with 0.5 and get a std deviation of about 1, which matches the normalized density gradient
+        return 0.5 * x
 
 
     def configure_optimizers(self):
@@ -211,10 +211,3 @@ class CConvModel(pl.LightningModule):
         self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=self.hparams['batch_size'])
 
 
-    def to(self, device):
-        super().to(device)
-        for layer in self.layers:
-            for sublayer in layer:
-                sublayer.to(device)
-
-        return self
