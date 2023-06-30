@@ -30,7 +30,10 @@ class DensityDataModule(pl.LightningDataModule):
         self.cache = cache
         self.dataset = {}
 
-        self.transform = None
+        self.transform = tf.Compose([
+            CorruptAttribute("pos", 0.005),
+            CorruptAttribute("vel", 0.005),
+        ])
 
         self.transform_once = tf.Compose([
             AddDensity(include_box=False),

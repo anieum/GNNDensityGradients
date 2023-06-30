@@ -11,6 +11,9 @@ class SampleToTensor(object):
     """
 
     def __init__(self, device='cpu'):
+        from warnings import warn
+        warn("SampleToTensor is deprecated. The density dataset itself now outputs tensors.", DeprecationWarning, stacklevel=2)
+
         self.device = device
         self.has_printed_warning = False
 
@@ -144,5 +147,27 @@ class NormalizeDensityData(object):
                 continue
 
             sample[key] = normalize(sample[key])
+
+        return sample
+
+def add_random_walk_noise(x, noise_std):
+    noise = torch.randn_like(x)
+    noise = noise * noise_std
+    noise = torch.cumsum(noise, dim=0)
+    return x + noise
+
+class CorruptAttribute(object):
+    """
+    Corrupts the key of the sample, by adding uniform noise.
+    """
+    # Note: DeepMind uses accumulating random walk noise. But they also store for each particle
+    # the position over 5 timesteps, so accumulating the noise there makes sense.
+
+    def __init__(self, key, noise_std=0.01):
+        self.noise_std = noise_std
+        self.key = key
+
+    def __call__(self, sample):
+        sample[self.key] = sample[self.key] + torch.rand_like(sample[self.key]) * self.noise_std
 
         return sample
