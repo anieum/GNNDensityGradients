@@ -32,7 +32,7 @@ class CConvModel(pl.LightningModule):
             'interpolation': 'linear',
             'coordinate_mapping': 'ball_to_cube_volume_preserving',
             'normalize': False,
-            'window_function': None,
+            'window_function': self._window_poly6,
             'radius_search_ignore_query_points': True,
             'other_feats_channels': 1  # 1 because we include density
         }
@@ -45,17 +45,13 @@ class CConvModel(pl.LightningModule):
 
         # register layers as parameters, so built-in pytorch functions like .parameters() and .to() work
         self.param_list = torch.nn.ParameterList([sublayer for layer in self.layers for sublayer in layer])
+        self.save_hyperparameters()
 
-
-    def _window_poly6(r_sqr):
+    def _window_poly6(self, r_sqr):
         return torch.clamp((1 - r_sqr)**3, 0, 1)
 
 
-    def _make_cconv_layer(self, name, activation=None, **kwargs):
-        window_fn = None
-        if self.use_window == True:
-            window_fn = self._window_poly6
-
+    def _make_cconv_layer(self, name, **kwargs):
         cconv_layer = ml3d.layers.ContinuousConv(
             kernel_size=self.conv_hprams['kernel_size'],
             activation=self.conv_hprams['activation'],
@@ -88,7 +84,6 @@ class CConvModel(pl.LightningModule):
                 name="conv0_fluid",
                 in_channels=4 + self.conv_hprams['other_feats_channels'],
                 filters=self.layer_channels[0],
-                activation=None
             )
 
         # Convolutional layer to handle obstacles channels, (normal_0, normal_1, normal_2) <- this is a 1 hot vector
@@ -96,7 +91,6 @@ class CConvModel(pl.LightningModule):
                 name="conv0_obstacle",
                 in_channels=3,
                 filters=self.layer_channels[0],
-                activation=None
             )
 
         # Dense layer to handle fluids channels (1, vel_0, vel_1, vel_2, density, other_feats)
@@ -124,7 +118,6 @@ class CConvModel(pl.LightningModule):
                 name="conv{}".format(layer),
                 in_channels=in_ch,
                 filters=out_ch,
-                activation=None
             )
 
             layers.append((dense_layer, conv_layer))

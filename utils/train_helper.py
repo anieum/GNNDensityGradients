@@ -92,3 +92,31 @@ def load_idx_to_file_map(path):
         raise Exception("Filemap _simulation_states.pkl is empty")
 
     return file_list
+
+def validate_hparams(hparams):
+    """
+    Validates the hyperparameters and throws an exception if they are invalid.
+    """
+
+    if not os.path.exists(hparams['save_path']):
+        os.makedirs(hparams['save_path'])
+
+    if not os.path.exists(hparams['dataset_dir']):
+        raise Exception("Dataset directory does not exist")
+
+    if hparams['load_checkpoint']:
+        if not os.path.exists(hparams['load_path']):
+            raise Exception("Checkpoint path does not exist")
+        hparams['load_path'] = os.path.abspath(hparams['load_path'])
+    else:
+        hparams['load_path'] = None
+
+    hparams['dataset_dir'] = os.path.abspath(hparams['dataset_dir'])
+    hparams['save_path'] = os.path.abspath(hparams['save_path'])
+
+def save_checkpoint(trainer, model, save_path):
+    from datetime import datetime
+    time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    path = os.path.join(save_path, time + '_version_' + str(trainer.logger.version) + '.ckpt')
+    print("Saving checkpoint to {}".format(path))
+    trainer.save_checkpoint(path)
