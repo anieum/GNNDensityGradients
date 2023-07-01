@@ -88,14 +88,76 @@ def transform_msgpack_file(filepath, transform):
     with open(filepath, 'rb') as f:
         content = msgpack.unpackb(decompressor.decompress(f.read()), raw=False)
 
-    content = transform(content)
+    for i in range(1, len(content)):
+        content[i]['box'] = content[0]['box']
+        content[i]['box_normals'] = content[0]['box_normals']
 
-    compressor = zstd.ZstdCompressor()
+    content = [transform(sample) for sample in content]
+
+    for i in range(1, len(content)):
+        content[i]['box'] = None
+        content[i]['box_normals'] = None
+
+    compressor = zstd.ZstdCompressor(level=22)
     with open(filepath, 'wb') as f:
-        f.write(compressor.compress(msgpack.packb(content)))
+        f.write(compressor.compress(msgpack.packb(content, use_bin_type=True)))
 
     return
 
+
+def prepocess_dataset_files(path, type='temp_grad', include_box=False, device = 'cpu'):
+    from tqdm import tqdm
+    from utils.transforms import ToSample, AddDensity, AddTemporalDensityGradient, AddSpatialDensityGradient, NormalizeDensityData, ToNumpy
+    from torchvision.transforms import Compose
+    import torch.cuda
+
+    if not os.path.exists(path):
+        raise Exception("Data directory does not exist")
+    
+    if os.path.isfile(path):
+        raise Exception("Input path must be a directory")
+    
+    if type not in ['temp_grad', 'spatial_grad', 'both']:
+        raise Exception("Unknown type")
+
+    if device != 'cuda' and torch.cuda.is_available():
+        print("You can accelerate the preprocessing by using cuda.")
+
+    files = glob(os.path.join(path, '*.zst'))
+    files.sort()
+
+    if len(files) == 0:
+        print("Make sure that the input directory contains *.zst files (e.g. dpi_dam_break/train NOT dpi_dam_break)")
+        return
+
+    # Transformations: ToSample, AddDensity, AddTemporalDensityGradient, NormalizeDensityData, ToNumpy
+    transformations = [
+        ToSample(device=device),
+        AddDensity(include_box=False),
+    ]
+
+    if type == 'temp_grad':
+        transformations += [AddTemporalDensityGradient(include_box=include_box)]
+    
+    if type == 'spatial_grad':
+        transformations += [AddSpatialDensityGradient(include_box=include_box)]
+
+    if type == 'both':
+        transformations += [
+            AddTemporalDensityGradient(include_box=include_box),
+            AddSpatialDensityGradient(include_box=include_box)
+        ]
+
+    transformations += [
+        NormalizeDensityData(),
+        ToNumpy()
+    ]
+
+    transformations = Compose(transformations)
+
+    # Overwrite files
+    for file in tqdm(files):
+        transform_msgpack_file(file, transformations)
 
 def load_idx_to_file_map(path):
     map_path = os.path.join(path, '_simulation_states.pkl')

@@ -5,46 +5,63 @@ from utils.sph import *
 import pytorch_lightning as pl
 from functorch import vmap # care in pytorch 2.0 this will be torch.vmap
 
-class SampleToTensor(object):
+class ToSample(object):
     """
-    Converts a sample to a tensor.
+    Convert a raw sample to a sample that can be used by the network.
+    (Tensors, correct device, correct views, etc.)
+
+    Available keys in raw_sample:
+    ['pos', 'vel', 'm', 'viscosity', 'box', 'box_normals', 'num_rigid_bodies', 'frame_id', 'scene_id']
     """
 
-    def __init__(self, device='cpu'):
-        from warnings import warn
-        warn("SampleToTensor is deprecated. The density dataset itself now outputs tensors.", DeprecationWarning, stacklevel=2)
-
+    def __init__(self, device):
         self.device = device
         self.has_printed_warning = False
 
-    def __call__(self, sample):
-        keys = ['pos', 'vel', 'viscosity', 'm', 'box', 'box_normals']
+    def __call__(self, raw_sample):
+        sample = {}
+        for key in ['pos', 'vel', 'm', 'viscosity', 'box', 'box_normals']:
+            sample[key] = raw_sample[key]
 
-        for key in keys:
-            if not isinstance(sample[key], torch.Tensor):
+            if not isinstance(sample[key], torch.Tensor) or sample[key].device != self.device:
                 sample[key] = torch.tensor(sample[key], dtype=torch.float32, device=self.device)
 
-        sample['m'] = sample['m'].view(-1, 1)
+            # if last dimension is not 1 or 3, add it
+            if sample[key].shape[-1] != 1 and sample[key].shape[-1] != 3:
+                sample[key] = sample[key].view(-1, 1)
 
         if (sample['m'] == 0).all():
             if not self.has_printed_warning:
-                print("WARNING: All masses are zero. Setting masses to 0.125. (This message is only shown once.)")
+                print("WARNING: All masses are zero. Setting masses to 2 * 0.06544984694978737. (This message is only shown once.)")
                 self.has_printed_warning = True
 
-            sample['m'] = torch.ones_like(sample['m']) * 0.125
+            sample['m'] = torch.ones_like(sample['m']) * 0.06544984694978736 * 2
 
         return sample
 
+class ToNumpy(object):
+    """
+    Convert a sample to a numpy sample.
+    """
+
+    def __init__(self):
+        pass
+
+    def __call__(self, sample):
+        for key in sample.keys():
+            if isinstance(sample[key], torch.Tensor):
+                sample[key] = sample[key].detach().cpu().numpy()
+
+        return sample
 
 class AddDensity(object):
     """
     Adds the density to the sample.
     """
 
-    def __init__(self, kernel=apply_cubic_kernel_torch, smoothing_length=smoothing_length, include_box=True, device = 'cpu'):
+    def __init__(self, kernel=apply_cubic_kernel_torch, smoothing_length=smoothing_length, include_box=True):
         self.kernel = kernel
         self.smoothing_length = smoothing_length
-        self.device = device
         self.include_box = include_box
 
     def __call__(self, sample):
