@@ -138,3 +138,14 @@ class SimulationDataset(torch.utils.data.Dataset):
             sample = self.transform_once(sample)
 
         return sample
+
+    def to(self, device):
+        self.device = device
+
+        if self.enable_cache:
+            for i in range(len(self.cache)):
+                for key in self.cache[i]:
+                    if isinstance(self.cache[i][key], torch.Tensor) and self.cache[i][key].device != self.device:
+                        self.cache[i][key] = self.cache[i][key].to(self.device)
+
+        return self

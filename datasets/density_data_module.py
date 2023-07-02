@@ -9,6 +9,8 @@ from datasets.density_dataset import SimulationDataset
 
 class DensityDataModule(pl.LightningDataModule):
     def __init__(self,
+                 target = "temporal_density_gradient",
+                 include_bounding_box = False,
                  data_dir: str = "path/to/dir",
                  batch_size: int = 32,
                  data_split: tuple = (0.7, 0.15, 0.15),
@@ -29,18 +31,25 @@ class DensityDataModule(pl.LightningDataModule):
         self.device = device
         self.cache = cache
         self.dataset = {}
+        self.total_dataset = None
 
         self.transform = tf.Compose([
             CorruptAttribute("pos", 0.005),
             CorruptAttribute("vel", 0.005),
         ])
 
-        self.transform_once = tf.Compose([
-            AddDensity(include_box=False),
-            # AddSpatialDensityGradient(include_box=False),
-            AddTemporalDensityGradient(include_box=False),
-            NormalizeDensityData(),
-        ])
+        one_time_transforms = [AddDensity(include_box=False)]
+
+        if target == "temporal_density_gradient":
+            one_time_transforms.append(AddTemporalDensityGradient(include_box=include_bounding_box))
+        elif target == "spatial_density_gradient":
+            one_time_transforms.append(AddSpatialDensityGradient(include_box=include_bounding_box))
+        else:
+            raise Exception("Unknown target")
+
+        one_time_transforms.append(NormalizeDensityData())
+
+        self.transform_once = tf.Compose(one_time_transforms)
 
     def _collate_identity(self, x):
         if not isinstance(x, list):
@@ -57,7 +66,7 @@ class DensityDataModule(pl.LightningDataModule):
             print("Dataset already set up")
             return
 
-        data = SimulationDataset(
+        self.total_dataset = SimulationDataset(
             files = self.files,
             transform = self.transform,
             transform_once = self.transform_once,
@@ -66,7 +75,7 @@ class DensityDataModule(pl.LightningDataModule):
         )
 
         dataset = {}
-        dataset["train"], dataset["eval"], dataset["test"] = random_split(data, self.data_split)
+        dataset["train"], dataset["eval"], dataset["test"] = random_split(self.total_dataset, self.data_split)
 
         self.dataset = dataset
 
@@ -84,6 +93,11 @@ class DensityDataModule(pl.LightningDataModule):
 
     def teardown(self, stage: str):
         pass
+
+    def to(self, device):
+        self.total_dataset.to(device)
+        self.device = device
+        return self
 
 
 # ref: https://lightning.ai/docs/pytorch/stable/data/datamodule.html
