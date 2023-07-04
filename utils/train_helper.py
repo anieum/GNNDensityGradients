@@ -77,6 +77,26 @@ def generate_map(filepath):
 
     return
 
+def transform_msgpack_file(filepath, transform):
+    """
+    Given a .zst file, applies the given transform to all stored simulation states and writes the result back to the file.
+    """
+    # TODO: Implement this to allow storing of preprocessed data
+    # See https://github.com/isl-org/DeepLagrangianFluids/blob/d651c6fdf2aca3fac9abe3693b20981b191b4769/datasets/create_physics_records.py#L100
+
+    decompressor = zstd.ZstdDecompressor()
+    with open(filepath, 'rb') as f:
+        content = msgpack.unpackb(decompressor.decompress(f.read()), raw=False)
+
+    content = transform(content)
+
+    compressor = zstd.ZstdCompressor()
+    with open(filepath, 'wb') as f:
+        f.write(compressor.compress(msgpack.packb(content)))
+
+    return
+
+
 def load_idx_to_file_map(path):
     map_path = os.path.join(path, '_simulation_states.pkl')
 
