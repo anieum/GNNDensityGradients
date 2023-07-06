@@ -174,32 +174,26 @@ class CConvModel(pl.LightningModule):
         #return [optimizer], [scheduler]
         return optimizer
 
-
-    def training_step(self, train_batch, batch_idx):
-        # train_batch is a list of batches
-        if not isinstance(train_batch, list):
-            raise Exception("train_batch must be a list of batches")
-
-        y_pred = [self(sample) for sample in train_batch]
-        y_target = [sample['temporal_density_gradient'] for sample in train_batch]
+    def _calculate_batch_loss(self, batch):
+        y_pred = [self(sample) for sample in batch]
+        y_target = [sample['temporal_density_gradient'] for sample in batch]
 
         loss = torch.tensor(0.0, device=self.device)
         for i in range(len(y_pred)):
             loss += F.mse_loss(y_pred[i], y_target[i])
         loss /= len(y_pred)
+
+        return loss
+
+    def training_step(self, train_batch, batch_idx):
+        loss = self._calculate_batch_loss(train_batch)
 
         self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=self.hparams['batch_size'])
         return loss
 
 
     def validation_step(self, val_batch, batch_idx):
-        y_pred = [self(sample) for sample in val_batch]
-        y_target = [sample['temporal_density_gradient'] for sample in val_batch]
-
-        loss = torch.tensor(0.0, device=self.device)
-        for i in range(len(y_pred)):
-            loss += F.mse_loss(y_pred[i], y_target[i])
-        loss /= len(y_pred)
+        loss = self._calculate_batch_loss(val_batch)
 
         self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=self.hparams['batch_size'])
 

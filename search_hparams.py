@@ -20,14 +20,35 @@ num_epochs = 5
 num_samples = 2
 
 hparams = {
-    # "layer_1_size": tune.choice([32, 64, 128]),
-    # "layer_2_size": tune.choice([64, 128, 256]),
-    "lr": tune.loguniform(1e-4, 1e-1),
+    # Search space ---------------------------------------------
+
+    # General 
+    "learning_rate": tune.loguniform(1e-4, 1e-2),                 # Default is 1e-3
+    "batch_size": tune.choice([8, 16, 32, 64]),                   # Default is 10
+    "regularization": tune.choice([None, "l1", "l2"]),
+    "optimizer": tune.choice(["adam", "sgd", "rmsprop"]),
+    
+    # CConv architecture
+    "kernel_size": tune.choice([2, 3, 4, 5, 8, 16]),              # Default is 4
+    "num_hidden_layers": tune.choice([0, 1, 2, 3, 4]),            # Default is 2
+    "input_layer_out_channels": tune.choice([4, 8, 16, 32, 64]),  # Default is 32
+    "hidden_units": tune.choice([32, 64, 128, 256]),              # Default is 64
+
+    # CConv operation parameters
+    "activation": tune.choice(["relu", "sigmoid", "tanh"]),     # Default is None?
+    "interpolation": tune.choice(["linear", "nearest_neighbor", "linear_border"]),        # Default is linear
+    "align_corners": tune.choice([True, False]),                # Default is True
+    "normalize": tune.choice([True, False]),                    # Default is False
+    "window_function": tune.choice(["None", "poly6", "gaussian", "cubic_spline"]), # Default is poly6
+    "coordinate_mapping": tune.choice(["ball_to_cube_volume_preserving", "ball_to_cube_radial", "identity"]), # Default is ball_to_cube_volume_preserving
+    "use_dense_layer_for_center": tune.choice([True, False]),
+    "filter_extent": tune.uniform(0.025 * 2, 0.3),    # Default is 0.025 * 6 * 1.5 = 0.225
+
+    # Static parameters -----------------------------------------
 
     # Dataset
     'dataset_dir': 'datasets/data/dpi_dam_break/train',
     'data_split': (0.7, 0.15, 0.15),
-    'batch_size': 10,        # care, this is used in the model and datamodule
     'shuffle': True,
     'cache': False,            # Preprocess and preload dataset into memory
     'device': 'cuda'
@@ -36,7 +57,7 @@ hparams = {
 datamodule = DensityDataModule(data_dir=hparams['dataset_dir'], batch_size=hparams['batch_size'], data_split=hparams['data_split'], shuffle=hparams['shuffle'], cache=hparams['cache'], device=hparams['device'])
 logger = TensorBoardLogger("lightning_logs", name="cconv-hparam-search", version=".")
 
-# DO NOT CACHE THE DATAMODULE AND PASS IT DIRECTLY WITHOUT LOADERS.
+# DO NOT CACHE THE DATAMODULE IF IT IS PASSED DIRECTLY WITHOUT LOADERS.
 # OTHERWISE RAY TUNE WILL SERIALIZE THE ENTIRE DATASET AND BLOW UP MEMORY AND DISK SPACE
 datamodule.setup("fit")
 torch.cuda.empty_cache()
