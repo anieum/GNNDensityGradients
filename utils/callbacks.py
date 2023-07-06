@@ -17,7 +17,7 @@ class VisualizePredictionCallback(Callback):
 
     :param model: model to visualize
     :param data_loader: data loader to use for visualization
-    :param dataset_type: type of the dataset as string ("train", "eval", "test")
+    :param dataset_type: type of the dataset as string ("train", "val", "test")
     """
 
     def __init__(self, model, dataset, dataset_type="train"):

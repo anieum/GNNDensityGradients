@@ -75,7 +75,7 @@ class DensityDataModule(pl.LightningDataModule):
         )
 
         dataset = {}
-        dataset["train"], dataset["eval"], dataset["test"] = random_split(self.total_dataset, self.data_split)
+        dataset["train"], dataset["val"], dataset["test"] = random_split(self.total_dataset, self.data_split)
 
         self.dataset = dataset
 
@@ -83,13 +83,13 @@ class DensityDataModule(pl.LightningDataModule):
         return DataLoader(self.dataset["train"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
 
     def val_dataloader(self):
-        return DataLoader(self.dataset["eval"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
+        return DataLoader(self.dataset["val"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
 
     def test_dataloader(self):
         return DataLoader(self.dataset["test"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
 
     def predict_dataloader(self):
-        return DataLoader(self.dataset["eval"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
+        return DataLoader(self.dataset["val"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
 
     def teardown(self, stage: str):
         pass

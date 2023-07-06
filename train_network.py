@@ -55,9 +55,9 @@ density_data.setup("Initialize")
 # TODO: callbacks: ModelCheckpoint, EarlyStopping, LearningRateFinder, LearningRateMonitor, RichModelSummary
 callbacks = [
     VisualizePredictionCallback(model=model, dataset=density_data.dataset['train'], dataset_type="train"),
-    VisualizePredictionCallback(model=model, dataset=density_data.dataset['eval'], dataset_type="eval"),
+    VisualizePredictionCallback(model=model, dataset=density_data.dataset['val'], dataset_type="val"),
     VisulizePrediction3DCallback(model=model, dataset=density_data.dataset['train'], dataset_type="train"),
-    VisulizePrediction3DCallback(model=model, dataset=density_data.dataset['eval'], dataset_type="eval"),
+    VisulizePrediction3DCallback(model=model, dataset=density_data.dataset['val'], dataset_type="val"),
     # LearningRateMonitor(logging_interval='step'),
     # ActivationHistogramCallback(model=model)
 ]
