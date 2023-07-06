@@ -38,7 +38,18 @@ class DensityDataModule(pl.LightningDataModule):
             CorruptAttribute("vel", 0.005),
         ])
 
-        one_time_transforms = [AddDensity(include_box=False)]
+
+        self.transform_once = self._get_density_transformations(target, include_bounding_box)
+
+    def _collate_identity(self, x):
+        if not isinstance(x, list):
+            raise Exception("x must be a list")
+
+        # check if for each element['pos'] in the list, the dimensions are 2
+        return x
+
+    def _get_density_transformations(self, target, include_bounding_box):
+        one_time_transforms = [AddDensity(include_box=include_bounding_box)]
 
         if target == "temporal_density_gradient":
             one_time_transforms.append(AddTemporalDensityGradient(include_box=include_bounding_box))
@@ -49,15 +60,7 @@ class DensityDataModule(pl.LightningDataModule):
 
         one_time_transforms.append(NormalizeDensityData())
 
-        self.transform_once = tf.Compose(one_time_transforms)
-
-    def _collate_identity(self, x):
-        if not isinstance(x, list):
-            raise Exception("x must be a list")
-
-        # check if for each element['pos'] in the list, the dimensions are 2
-        return x
-
+        return tf.Compose(one_time_transforms)
 
     def setup(self, stage: str):
         print("Setting up data module for stage ", stage)

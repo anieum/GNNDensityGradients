@@ -63,14 +63,24 @@ class SimulationDataset(torch.utils.data.Dataset):
         self.length = len(self.filemap)
 
         if len(set([f[4] for f in self.filemap])) != len(self.files):
-            raise Exception("Number of files in filemap and given files do not match. Please rebuild dataset filemap.")
+            raise Exception("Number of files in filemap and given files do not match. Please delete or rebuild dataset filemap. (Delete will cause a rebuild)")
 
         # If cache is enabled, load all data into memory
         self.enable_cache = cache
         self.cache = []
 
+
+        # TODO: This is not the cleanest way to do this, as it makes one time transformations impossible, if density data is set.
+        #       A better solution would be to have a flag that indicates if the dataset is preprepared.
+        if self.is_preprepared():
+            print("Dataset is already preprepared. Not applying transform_once. (This means density & grads aren't recalculated.)")
+            self.transform_once = None
+        else:
+            print("Dataset is not preprepared. Applying transform_once. (Device: {})".format(self.device))
+
         if self.enable_cache:
-            print("Loading dataset into memory and applying transform_once... (Device: {})".format(self.device))
+            print("Loading dataset into memory...")
+
             for i in tqdm(range(len(self.files))):
                 file = self.files[i]
                 file_content = self._get_file_content(file)
@@ -82,6 +92,7 @@ class SimulationDataset(torch.utils.data.Dataset):
                     self.cache.append(sample)
 
             print("Done loading dataset into memory")
+
 
 
     def __getitem__(self, idx):
@@ -121,6 +132,29 @@ class SimulationDataset(torch.utils.data.Dataset):
             sample = self.transform_once(sample)
 
         return sample
+
+    def is_preprepared(self):
+        """
+        Returns True if the dataset is already preprocessed and has density and density gradients.
+
+        It does so by checking the first sample of the first file.
+        """
+        
+        if len(self) == 0:
+            return True
+
+        sample = None
+        if len(self.cache) > 0:
+            sample = self.cache[0]
+        else:
+            file_content = self._get_file_content(self.files[0])
+
+            if len(file_content) == 0:
+                return True
+
+            sample = file_content[0]
+
+        return 'density' in sample and ('temporal_density_gradient' in sample or 'spatial_density_gradient' in sample)
 
     def to(self, device):
         self.device = device
