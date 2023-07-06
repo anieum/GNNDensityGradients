@@ -9,6 +9,7 @@ import msgpack
 import msgpack_numpy
 from glob import glob
 from utils.train_helper import generate_map, load_idx_to_file_map
+from utils.transforms import ToSample
 msgpack_numpy.patch()
 
 
@@ -24,6 +25,12 @@ class SimulationDataset(torch.utils.data.Dataset):
         """
         Initialize the dataset from a list of compressed partio files.
 
+        If the dataset already is transformed and has density and density gradients, additional
+        transformations are not necessary. If not, the following transformations are recommended:
+        - AddDensity
+        - AddTemporalDensityGradient
+        - NormalizeDensityData
+        
         :param files: list of paths to partio files
         :param transform: transform to apply to each sample
         :param transform_once: transform to apply to each sample once, after loading it from disk
@@ -46,6 +53,7 @@ class SimulationDataset(torch.utils.data.Dataset):
         self.transform_once = transform_once
         self.device = device
         self.has_printed_warning = False
+        self.to_sample_func = ToSample(device=self.device)
 
         # File handling
         files.sort() # this is essential. The filemap assumes that the files are sorted.
@@ -107,32 +115,7 @@ class SimulationDataset(torch.utils.data.Dataset):
         return data
 
     def _prepare_sample(self, raw_sample):
-        """
-        Convert a raw sample to a sample that can be used by the network.
-        (Tensors, correct device, correct views, etc.)
-
-        Available keys in raw_sample:
-        ['pos', 'vel', 'm', 'viscosity', 'box', 'box_normals', 'num_rigid_bodies', 'frame_id', 'scene_id']
-        """
-
-        sample = {}
-        for key in ['pos', 'vel', 'm', 'viscosity', 'box', 'box_normals']:
-            sample[key] = raw_sample[key]
-
-            if not isinstance(sample[key], torch.Tensor) or sample[key].device != self.device:
-                sample[key] = torch.tensor(sample[key], dtype=torch.float32, device=self.device)
-
-            # if last dimension is not 1 or 3, add it
-            if sample[key].shape[-1] != 1 and sample[key].shape[-1] != 3:
-                sample[key] = sample[key].view(-1, 1)
-
-
-        if (sample['m'] == 0).all():
-            if not self.has_printed_warning:
-                print("WARNING: All masses are zero. Setting masses to 2 * 0.06544984694978737. (This message is only shown once.)")
-                self.has_printed_warning = True
-
-            sample['m'] = torch.ones_like(sample['m']) * 0.06544984694978736 * 2
+        sample = self.to_sample_func(raw_sample)
 
         if self.transform_once:
             sample = self.transform_once(sample)
