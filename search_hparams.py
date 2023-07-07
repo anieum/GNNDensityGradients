@@ -23,35 +23,35 @@ hparams = {
     # Search space ---------------------------------------------
 
     # General 
-    "learning_rate": tune.loguniform(1e-4, 1e-2),                 # Default is 1e-3
-    "batch_size": tune.choice([8, 16, 32, 64]),                   # Default is 10
-    "regularization": tune.choice([None, "l1", "l2"]),
-    "optimizer": tune.choice(["adam", "sgd", "rmsprop"]),
+    "learning_rate" : tune.loguniform(1e-4, 1e-2),             # Default is 1e-3
+    "batch_size"    : tune.choice([8, 16, 32, 64]),            # Default is 10
+    "regularization": tune.choice([None, "l1", "l2"]),         # NOT IMPLEMENTED
+    "optimizer"     : tune.choice(["adam", "sgd", "rmsprop"]), # NOT IMPLEMENTED
     
     # CConv architecture
-    "kernel_size": tune.choice([2, 3, 4, 5, 8, 16]),              # Default is 4
-    "num_hidden_layers": tune.choice([0, 1, 2, 3, 4]),            # Default is 2
-    "input_layer_out_channels": tune.choice([4, 8, 16, 32, 64]),  # Default is 32
-    "hidden_units": tune.choice([32, 64, 128, 256]),              # Default is 64
+    "kernel_size"             : tune.choice([-1, 3, 4, 8]),      # Default is 4; -1 is a magic value to use a dense layer
+    "num_hidden_layers"       : tune.choice([0, 1, 2, 3, 4]),    # Default is 2
+    "input_layer_out_channels": tune.choice([4, 8, 16, 32, 64]), # Default is 32
+    "hidden_units"            : tune.choice([32, 64, 128, 256]), # Default is 64
 
     # CConv operation parameters
-    "activation": tune.choice(["relu", "sigmoid", "tanh"]),     # Default is None?
-    "interpolation": tune.choice(["linear", "nearest_neighbor", "linear_border"]),        # Default is linear
-    "align_corners": tune.choice([True, False]),                # Default is True
-    "normalize": tune.choice([True, False]),                    # Default is False
-    "window_function": tune.choice(["None", "poly6", "gaussian", "cubic_spline"]), # Default is poly6
-    "coordinate_mapping": tune.choice(["ball_to_cube_volume_preserving", "ball_to_cube_radial", "identity"]), # Default is ball_to_cube_volume_preserving
-    "use_dense_layer_for_center": tune.choice([True, False]),
-    "filter_extent": tune.uniform(0.025 * 2, 0.3),    # Default is 0.025 * 6 * 1.5 = 0.225
+    "intermediate_activation"   : tune.choice(["relu", "sigmoid", "tanh"]),                                           # Default is None?
+    "interpolation"             : tune.choice(["linear", "nearest_neighbor", "linear_border"]),                       # Default is linear
+    "align_corners"             : tune.choice([True, False]),                                                         # Default is True
+    "normalize"                 : tune.choice([True, False]),                                                         # Default is False
+    "window_function"           : tune.choice(["None", "poly6", "gaussian", "cubic_spline"]),                         # Default is poly6
+    "coordinate_mapping"        : tune.choice(["ball_to_cube_volume_preserving", "ball_to_cube_radial", "identity"]), # Default is ball_to_cube_volume_preserving
+    "filter_extent"             : tune.uniform(0.025 * 4 * 1.0, 0.025 * 9 * 1.5),                                     # Default is 0.025 * 6 * 1.5 = 0.225
 
     # Static parameters -----------------------------------------
+    "out_units"  : 1,           # 1 for temporal density gradient, 3 for spatial density gradient
 
     # Dataset
     'dataset_dir': 'datasets/data/dpi_dam_break/train',
-    'data_split': (0.7, 0.15, 0.15),
-    'shuffle': True,
-    'cache': False,            # Preprocess and preload dataset into memory
-    'device': 'cuda'
+    'data_split' : (0.7, 0.15, 0.15),
+    'shuffle'    : True,
+    'cache'      : False,                               # Preprocess and preload dataset into memory
+    'device'     : 'cuda'
 }
 
 datamodule = DensityDataModule(data_dir=hparams['dataset_dir'], batch_size=hparams['batch_size'], data_split=hparams['data_split'], shuffle=hparams['shuffle'], cache=hparams['cache'], device=hparams['device'])
@@ -80,15 +80,15 @@ ray.init(num_cpus=6, num_gpus=1)
 
 lightning_trainer = LightningTrainer(
     scaling_config = ScalingConfig(
-        num_workers=1,
-        use_gpu=True,
-        resources_per_worker={"CPU": 2, "GPU": 0.5}
+        num_workers          = 1,
+        use_gpu              = True,
+        resources_per_worker = {"CPU": 2, "GPU": 0.5}
     ),
     run_config = RunConfig(
         checkpoint_config = CheckpointConfig(
-            num_to_keep=2,
-            checkpoint_score_attribute="val_loss",
-            checkpoint_score_order="min",
+            num_to_keep                = 2,
+            checkpoint_score_attribute = "val_loss",
+            checkpoint_score_order     = "min",
         ),
     )
 )
