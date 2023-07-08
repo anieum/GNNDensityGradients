@@ -20,7 +20,11 @@ class ToSample(object):
 
     def __call__(self, raw_sample):
         sample = {}
-        for key in ['pos', 'vel', 'm', 'viscosity', 'box', 'box_normals']:
+        ignore_keys = ['num_rigid_bodies', 'frame_id', 'scene_id']
+        for key in raw_sample.keys():
+            if key in ignore_keys:
+                continue
+
             sample[key] = raw_sample[key]
 
             if not isinstance(sample[key], torch.Tensor) or sample[key].device != self.device:
@@ -32,10 +36,10 @@ class ToSample(object):
 
         if (sample['m'] == 0).all():
             if not self.has_printed_warning:
-                print("WARNING: All masses are zero. Setting masses to 2 * 0.06544984694978737. (This message is only shown once.)")
+                print("WARNING: All masses are zero. Setting masses to 0.125. (This message is only shown once.)")
                 self.has_printed_warning = True
 
-            sample['m'] = torch.ones_like(sample['m']) * 0.06544984694978736 * 2
+            sample['m'] = torch.ones_like(sample['m']) * 0.125
 
         return sample
 

@@ -30,7 +30,12 @@ def get_file_info(filepath):
     basename = os.path.basename(filepath)
 
     # id + box id
-    return [(basename, simulation['frame_id'], simulation['scene_id']) for simulation in content]
+    frame_id = -1
+    scene_id = -1
+
+    return [(basename,
+             simulation['frame_id'] if 'frame_id' in simulation else -1,
+             simulation['scene_id'] if 'scene_id' in simulation else -1) for simulation in content]
 
 
 def generate_map(filepath):
@@ -113,10 +118,10 @@ def prepocess_dataset_files(path, type='temp_grad', include_box=False, device = 
 
     if not os.path.exists(path):
         raise Exception("Data directory does not exist")
-    
+
     if os.path.isfile(path):
         raise Exception("Input path must be a directory")
-    
+
     if type not in ['temp_grad', 'spatial_grad', 'both']:
         raise Exception("Unknown type")
 
@@ -127,31 +132,19 @@ def prepocess_dataset_files(path, type='temp_grad', include_box=False, device = 
     files.sort()
 
     if len(files) == 0:
-        print("Make sure that the input directory contains *.zst files (e.g. dpi_dam_break/train NOT dpi_dam_break)")
-        return
+        raise Exception("Make sure that the input directory contains *.zst files (e.g. dpi_dam_break/train NOT dpi_dam_break)")
 
-    # Transformations: ToSample, AddDensity, AddTemporalDensityGradient, NormalizeDensityData, ToNumpy
-    transformations = [
-        ToSample(device=device),
-        AddDensity(include_box=False),
-    ]
+    # Put together transformations that are applied to each simulation state in each file
+    transformations = [ToSample(device=device)]
+    transformations += [AddDensity(include_box=False)]
 
-    if type == 'temp_grad':
+    if type == 'temp_grad' or type == 'both':
         transformations += [AddTemporalDensityGradient(include_box=include_box)]
-    
-    if type == 'spatial_grad':
+    if type == 'spatial_grad' or type == 'both':
         transformations += [AddSpatialDensityGradient(include_box=include_box)]
 
-    if type == 'both':
-        transformations += [
-            AddTemporalDensityGradient(include_box=include_box),
-            AddSpatialDensityGradient(include_box=include_box)
-        ]
-
-    transformations += [
-        NormalizeDensityData(),
-        ToNumpy()
-    ]
+    transformations += [NormalizeDensityData()]
+    transformations += [ToNumpy()]
 
     transformations = Compose(transformations)
 
@@ -185,6 +178,9 @@ def validate_hparams(hparams):
 
     if not os.path.exists(hparams['dataset_dir']):
         raise Exception("Dataset directory does not exist")
+
+    if len(glob(os.path.join(hparams['dataset_dir'], '*.zst'))) == 0:
+        raise Exception("Dataset directory does not contain *.zst files")
 
     if hparams['load_checkpoint']:
         if not os.path.exists(hparams['load_path']):
