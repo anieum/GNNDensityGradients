@@ -45,7 +45,7 @@ class CConvModel(pl.LightningModule):
         self.particle_radius            = 0.025                     # NOT USED
         self.radius_scale               = 1.5                       # NOT USED
         self.filter_extent              = hparams['filter_extent']  # self.radius_scale * 6 * self.particle_radius
-        
+
         self.channels_per_layer   = [hparams['input_layer_out_channels']] + hparams['num_hidden_layers'] * [hparams['hidden_units']] + [hparams['out_units']]
         self.layers               = self._setup_layers()
 
@@ -65,7 +65,7 @@ class CConvModel(pl.LightningModule):
             return None
         else:
             raise ValueError("Unknown window function: {}".format(window_fn))
-        
+
     def _select_activation_fn(self, activation_fn):
         if activation_fn == 'relu':
             return F.relu
@@ -73,6 +73,10 @@ class CConvModel(pl.LightningModule):
             return F.tanh
         elif activation_fn == 'sigmoid':
             return F.sigmoid
+        elif activation_fn == 'leaky_relu':
+            return F.leaky_relu
+        elif activation_fn == 'GeLU':
+            return F.gelu
         elif activation_fn == 'None':
             return None
         else:
@@ -81,16 +85,16 @@ class CConvModel(pl.LightningModule):
 
     def _window_poly6(self, r_sqr):
         return torch.clamp((1 - r_sqr)**3, 0, 1)
-    
+
     def _window_gaussian(self, r_sqr):
         if r_sqr > 9:
             return 0
 
         return torch.exp(-r_sqr)
-    
+
     def _window_cubic_spline(self, r_sqr):
         return cubic_spline(torch.sqrt(r_sqr), 1.0)
-    
+
 
     def _make_cconv_layer(self, **kwargs):
         cconv_layer = ml3d.layers.ContinuousConv(

@@ -8,29 +8,53 @@ from datasets.vtk_dataset import VtkDataset
 from datasets.density_data_module import DensityDataModule
 
 hparams = {
+    # General ---------------------------------------------------
+
     # Dataset
-    'dataset_dir': 'datasets/data/dpi_dam_break/train',
-    'data_split': (0.7, 0.15, 0.15),
-    'batch_size': 30,
-    'shuffle': True,
-    'cache': True,            # Preprocess and preload dataset into memory
+    'dataset_dir' : 'datasets/data/dam_break_preprocessed/train',
+    'data_split'  : (0.7, 0.15, 0.15),
+    'shuffle'     : True,
+    'cache'       : True,                                         # Preprocess and preload dataset into memory
 
     # Training
-    'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-    'num_training_nodes': 1,  # number of nodes to train on (e.g. 1 GPU)
-    'num_workers': 0,         # number of workers for dataloader (e.g. 2 worker threads)
-    'num_epochs': 0,
-    'lr': 2e-3,
+    'batch_size' : 4,
+    'lr'         : 2e-3,
+    'device'     : 'cuda' if torch.cuda.is_available() else 'cpu',
+
+    'num_training_nodes'  : 1,    # number of nodes to train on (e.g. 1 GPU)
+    'num_workers'         : 0,    # number of workers for dataloader (e.g. 2 worker threads)
+    'num_epochs'          : 15,   # Per epoch with 1000 files containing 6600 samples expect 6 minutes on a 1080 Ti
+    'limit_train_batches' : 0.1,  # Use only 10% of the training data per epoch; default is 1.0
+    'limit_val_batches'   : 0.1,  # Use only 10% of the validation data per epoch; default is 1.0
 
     # Logging
-    'log_every_n_steps': 1,
-    'val_every_n_epoch': 3,
+    'log_every_n_steps' : 1,
+    'val_every_n_epoch' : 3,
 
     # Checkpoints
-    'load_checkpoint': False,
-    'save_path': 'lightning_logs',
-    'load_path': 'lightning_logs/version_42.ckpt',
-    'model': CConvModel,
+    'load_checkpoint' : False,
+    'save_path'       : 'lightning_logs',
+    'load_path'       : 'lightning_logs/version_42.ckpt',
+    'model'           : CConvModel,
+
+    # CConv parameters -------------------------------------------
+
+    # CConv architecture
+    "kernel_size"              : 4,  # Default is 4
+    "num_hidden_layers"        : 2,  # Default is 2
+    "input_layer_out_channels" : 32, # Default is 32
+    "hidden_units"             : 64, # Default is 64
+    "out_units"                : 1,  # 1 for temporal density gradient, 3 for spatial density gradient
+
+    # CConv operation parameters
+    "intermediate_activation_fn"        : "relu",                           # Default is ReLU;
+    "interpolation"                     : "linear",                         # Default is linear;
+    "align_corners"                     : True,                             # Default is True
+    "normalize"                         : False,                            # Default is False
+    "window_function"                   : "poly6",                          # Default is poly6
+    "coordinate_mapping"                : "ball_to_cube_volume_preserving", # Default is ball_to_cube_volume_preserving
+    "filter_extent"                     : 0.025 * 6 * 1.5,                  # Default is 0.025 * 6 * 1.5 = 0.225
+    "radius_search_ignore_query_points" : False,                            # Default is False
 }
 
 # Validate hyperparameters
@@ -42,13 +66,13 @@ model = m.load_from_checkpoint(hparams['load_path']) if hparams['load_checkpoint
 
 # Datasets
 density_data = DensityDataModule(
-    data_dir = hparams['dataset_dir'],
-    batch_size = hparams['batch_size'],
-    data_split = hparams['data_split'],
+    data_dir    = hparams['dataset_dir'],
+    batch_size  = hparams['batch_size'],
+    data_split  = hparams['data_split'],
     num_workers = hparams['num_workers'], # Note that cuda only allows 0 workers.
-    shuffle = hparams['shuffle'],
-    cache = hparams['cache'], # Load dataset into memory
-    device = hparams['device'],
+    shuffle     = hparams['shuffle'],
+    cache       = hparams['cache'],       # Load dataset into memory
+    device      = hparams['device'],
 )
 density_data.setup("Initialize")
 
@@ -63,11 +87,13 @@ callbacks = [
 ]
 
 trainer = pl.Trainer(
-    num_nodes = hparams['num_training_nodes'],
-    max_epochs = hparams['num_epochs'],
-    log_every_n_steps = hparams['log_every_n_steps'],
+    num_nodes               = hparams['num_training_nodes'],
+    max_epochs              = hparams['num_epochs'],
+    log_every_n_steps       = hparams['log_every_n_steps'],
     check_val_every_n_epoch = hparams['val_every_n_epoch'],
-    callbacks = callbacks,
+    limit_train_batches     = hparams['limit_train_batches'],
+    limit_val_batches       = hparams['limit_val_batches'],
+    callbacks               = callbacks,
 )
 
 # DISABLED, the resulting learning rate is way too low
