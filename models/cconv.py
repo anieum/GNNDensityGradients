@@ -67,6 +67,8 @@ class CConvModel(pl.LightningModule):
             raise ValueError("Unknown window function: {}".format(window_fn))
 
     def _select_activation_fn(self, activation_fn):
+        activation_fn = activation_fn.lower()
+
         if activation_fn == 'relu':
             return F.relu
         elif activation_fn == 'tanh':
@@ -75,9 +77,9 @@ class CConvModel(pl.LightningModule):
             return F.sigmoid
         elif activation_fn == 'leaky_relu':
             return F.leaky_relu
-        elif activation_fn == 'GeLU':
+        elif activation_fn == 'gelu':
             return F.gelu
-        elif activation_fn == 'None':
+        elif activation_fn == 'none':
             return None
         else:
             raise ValueError("Unknown activation function: {}".format(activation_fn))
@@ -87,9 +89,6 @@ class CConvModel(pl.LightningModule):
         return torch.clamp((1 - r_sqr)**3, 0, 1)
 
     def _window_gaussian(self, r_sqr):
-        if r_sqr > 9:
-            return 0
-
         return torch.exp(-r_sqr)
 
     def _window_cubic_spline(self, r_sqr):
@@ -126,8 +125,9 @@ class CConvModel(pl.LightningModule):
         # Input layer of networks (3 parallel layers) -----------------------------------------------
         # Convolutional layer to handle fluids channels (1, vel_0, vel_1, vel_2, density, other_feats)
         conv0_fluid = self._make_cconv_layer(
-                in_channels = 4 + self.conv_hprams['other_feats_channels'],
-                filters     = self.channels_per_layer[0],
+                in_channels                = 4 + self.conv_hprams['other_feats_channels'],
+                filters                    = self.channels_per_layer[0],
+                use_dense_layer_for_center = self.conv_hprams['use_dense_layer_for_center'],
             )
 
         # Convolutional layer to handle obstacles channels, (normal_0, normal_1, normal_2) <- this is a 1 hot vector
@@ -158,9 +158,10 @@ class CConvModel(pl.LightningModule):
             torch.nn.init.zeros_(dense_layer.bias)
 
             conv_layer = self._make_cconv_layer(
-                name="conv{}".format(layer),
-                in_channels = in_ch,
-                filters     = out_ch,
+                name                       = "conv{}".format(layer),
+                in_channels                = in_ch,
+                filters                    = out_ch,
+                use_dense_layer_for_center = self.conv_hprams['use_dense_layer_for_center'],
             )
 
             layers.append((dense_layer, conv_layer))

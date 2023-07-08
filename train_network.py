@@ -53,8 +53,9 @@ hparams = {
     "normalize"                         : False,                            # Default is False
     "window_function"                   : "poly6",                          # Default is poly6
     "coordinate_mapping"                : "ball_to_cube_volume_preserving", # Default is ball_to_cube_volume_preserving
-    "filter_extent"                     : 0.025 * 6 * 1.5,                  # Default is 0.025 * 6 * 1.5 = 0.225
+    "filter_extent"                     : 0.12574419077161608,              # Default is 0.025 * 6 * 1.5 = 0.225
     "radius_search_ignore_query_points" : False,                            # Default is False
+    "use_dense_layer_for_centers"       : True,                             # Default is False
 }
 
 # Validate hyperparameters

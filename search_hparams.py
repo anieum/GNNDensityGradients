@@ -17,8 +17,8 @@ import torch.cuda
 
 hparams = {
     # Search space ---------------------------------------------
-    'num_epochs'  : 10,
-    'num_samples' : 10,
+    'num_epochs'  : 15,
+    'num_samples' : 40,
 
     # General
     'learning_rate' : tune.loguniform(1e-4, 1e-2),             # Default is 1e-3
@@ -27,20 +27,21 @@ hparams = {
     # 'optimizer'     : tune.choice(['adam', 'sgd', 'rmsprop']), # NOT IMPLEMENTED
 
     # CConv architecture
-    'kernel_size'             : tune.choice([3, 4, 8]),          # Default is 4; -1 is a magic value to use a dense layer
-    'num_hidden_layers'       : tune.choice([0, 1, 2, 3, 4]),    # Default is 2
-    'input_layer_out_channels': tune.choice([4, 8, 16, 32, 64]), # Default is 32
-    'hidden_units'            : tune.choice([32, 64, 128, 256]), # Default is 64
+    'kernel_size'              : tune.choice([3, 4, 8, 16]),     # Default is 4; -1 is a magic value to use a dense layer
+    'num_hidden_layers'        : tune.choice([0, 1, 2, 3, 4]),   # Default is 2
+    'input_layer_out_channels' : tune.choice([8, 16, 32, 64]),   # Default is 32
+    'hidden_units'             : tune.choice([32, 48, 64, 128]), # Default is 64
 
     # CConv operation parameters
-    'intermediate_activation_fn' : tune.choice(['relu', 'tanh', 'GeLU']),                                              # Default is ReLU; Alternives     : 'tanh',             'sigmoid', 'leaky_relu', 'GeLU'
-    'interpolation'              : tune.choice(['linear']),                                                            # Default is linear; Alternatives : 'nearest_neighbor', 'linear_border'
-    'align_corners'              : tune.choice([True, False]),                                                         # Default is True
-    'normalize'                  : tune.choice([True, False]),                                                         # Default is False
-    'window_function'            : tune.choice(['None', 'poly6']),                                                     # Default is poly6; Alternatives  : 'gaussian',         'cubic_spline'
-    'coordinate_mapping'         : tune.choice(['ball_to_cube_volume_preserving', 'ball_to_cube_radial', 'identity']), # Default is ball_to_cube_volume_preserving
-    'filter_extent'              : tune.loguniform(0.025 * 4 * 1.0, 0.025 * 9 * 1.5),                                  # Default is 0.025 * 6 * 1.5 = 0.225
-    'radius_search_ignore_query_points' : tune.choice([True, False]),                                                 # Default is False
+    'intermediate_activation_fn'        : tune.choice(['relu', 'tanh', 'GeLU', 'leaky_relu']),                                # Default is ReLU; Alternives     : 'tanh',             'sigmoid', 'leaky_relu', 'GeLU'
+    'interpolation'                     : tune.choice(['linear', 'nearest_neighbor', 'linear_border']),                       # Default is linear; Alternatives : 'nearest_neighbor', 'linear_border'
+    'align_corners'                     : tune.choice([True, False]),                                                         # Default is True
+    'normalize'                         : tune.choice([True, False]),                                                         # Default is False
+    'window_function'                   : tune.choice(['None', 'poly6', 'gaussian']),                                         # Default is poly6; Alternatives  : 'gaussian',         'cubic_spline'
+    'coordinate_mapping'                : tune.choice(['ball_to_cube_volume_preserving', 'ball_to_cube_radial', 'identity']), # Default is ball_to_cube_volume_preserving
+    'filter_extent'                     : tune.loguniform(0.025 * 3 * 1.0, 0.025 * 7 * 1.5),                                  # Default is 0.025 * 6 * 1.5 = 0.225
+    'radius_search_ignore_query_points' : tune.choice([True, False]),                                                         # Default is False
+    'use_dense_layer_for_centers'       : tune.choice([True, False]),                                                         # Default is False
 
     # Static parameters -----------------------------------------
     'out_units'  : 1,           # 1 for temporal density gradient, 3 for spatial density gradient
