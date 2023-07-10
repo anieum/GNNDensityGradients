@@ -1,5 +1,9 @@
+from typing import Dict, List, Optional
 import pytorch_lightning as pl
+from ray.tune.experiment.trial import Trial
+from ray.tune.stopper import Stopper
 from utils.train_helper import *
+from utils.callbacks import LogParametersCallback
 from models.cconv import CConvModel
 from datasets.density_data_module import DensityDataModule
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -10,15 +14,13 @@ from ray.air.config import RunConfig, ScalingConfig, CheckpointConfig
 from ray.tune.schedulers import ASHAScheduler
 import torch.cuda
 
-# See https://docs.ray.io/en/latest/train/examples/lightning/lightning_mnist_example.html#lightning-mnist-example
-# and https://pytorch.org/tutorials/beginner/hyperparameter_tuning_tutorial.html
-
-
 
 hparams = {
+    # Search parameters
+    'num_epochs'  : 1,
+    'num_samples' : 1,
+
     # Search space ---------------------------------------------
-    'num_epochs'  : 15,
-    'num_samples' : 40,
 
     # General
     'learning_rate' : tune.loguniform(1e-4, 1e-2),             # Default is 1e-3
@@ -33,13 +35,13 @@ hparams = {
     'hidden_units'             : tune.choice([32, 48, 64, 128]), # Default is 64
 
     # CConv operation parameters
-    'intermediate_activation_fn'        : tune.choice(['relu', 'tanh', 'GeLU', 'leaky_relu']),                                # Default is ReLU; Alternives     : 'tanh',             'sigmoid', 'leaky_relu', 'GeLU'
+    'intermediate_activation_fn'        : tune.choice(['ReLU', 'Tanh', 'GeLU', 'Leaky_ReLU']),                                # Default is ReLU; Alternives     : 'tanh',             'sigmoid', 'leaky_relu', 'GeLU'
     'interpolation'                     : tune.choice(['linear', 'nearest_neighbor', 'linear_border']),                       # Default is linear; Alternatives : 'nearest_neighbor', 'linear_border'
     'align_corners'                     : tune.choice([True, False]),                                                         # Default is True
     'normalize'                         : tune.choice([True, False]),                                                         # Default is False
     'window_function'                   : tune.choice(['None', 'poly6', 'gaussian']),                                         # Default is poly6; Alternatives  : 'gaussian',         'cubic_spline'
     'coordinate_mapping'                : tune.choice(['ball_to_cube_volume_preserving', 'ball_to_cube_radial', 'identity']), # Default is ball_to_cube_volume_preserving
-    'filter_extent'                     : tune.loguniform(0.025 * 3 * 1.0, 0.025 * 7 * 1.5),                                  # Default is 0.025 * 6 * 1.5 = 0.225
+    'filter_extent'                     : tune.loguniform(0.025 * 3 * 1.0, 0.025 * 6 * 1.5),                                  # Default is 0.025 * 6 * 1.5 = 0.225
     'radius_search_ignore_query_points' : tune.choice([True, False]),                                                         # Default is False
     'use_dense_layer_for_centers'       : tune.choice([True, False]),                                                         # Default is False
 
@@ -50,15 +52,23 @@ hparams = {
     'dataset_dir' : 'datasets/data/dam_break_preprocessed/train',
     'data_split'  : (0.7, 0.15, 0.15),
     'shuffle'     : True,
-    'cache'       : False,         # Preprocess and preload dataset into memory (GPU memory if cuda)
+    'cache'       : True,         # Preprocess and preload dataset into memory (GPU memory if cuda)
     'device'      : 'cuda',
 
     # Training
-    'limit_train_batches' : 0.1,  # Use only 10% of the training data per epoch; default is 1.0
+    'limit_train_batches' : 0.01,  # Use only 10% of the training data per epoch; default is 1.0
     'limit_val_batches'   : 0.1,  # Use only 10% of the validation data per epoch; default is 1.0
 }
 
-datamodule = DensityDataModule(data_dir=hparams['dataset_dir'], batch_size=hparams['batch_size'], data_split=hparams['data_split'], shuffle=hparams['shuffle'], cache=hparams['cache'], device=hparams['device'])
+# TODO: write Tune log into ram disk
+datamodule = DensityDataModule(
+    data_dir   = hparams['dataset_dir'],
+    batch_size = hparams['batch_size'],
+    data_split = hparams['data_split'],
+    shuffle    = hparams['shuffle'],
+    cache      = hparams['cache'],
+    device     = hparams['device']
+)
 logger = TensorBoardLogger('lightning_logs', name='cconv-hparam-search', version='.')
 
 # DO NOT CACHE THE DATAMODULE IF IT IS PASSED DIRECTLY WITHOUT LOADERS.
@@ -80,6 +90,7 @@ lightning_config = (
         enable_progress_bar = False,
         limit_train_batches = hparams['limit_train_batches'],
         limit_val_batches   = hparams['limit_val_batches'],
+        callbacks           = [LogParametersCallback()],
     )
     .fit_params(train_dataloaders=train_loader, val_dataloaders=val_loader)
     .checkpointing(monitor='val_loss', mode='min', save_top_k=2)
@@ -112,7 +123,9 @@ def tune_models(num_samples=10, num_epochs=10):
 
     tuner = tune.Tuner(
         lightning_trainer,
-        param_space = {'lightning_config': lightning_config},
+        param_space = {
+            'lightning_config': lightning_config,
+            },
         tune_config = tune.TuneConfig(
             metric      = 'val_loss',
             mode        = 'min',
@@ -122,8 +135,14 @@ def tune_models(num_samples=10, num_epochs=10):
     )
 
     results = tuner.fit()
-    best_result = results.get_best_result(metric='val_loss', mode='max')
+    best_result = results.get_best_result(metric='val_loss', mode='min')
     best_result
 
-print('Cuda is available: ', torch.cuda.is_available())
+print('Cuda is available:', torch.cuda.is_available())
 tune_models(num_samples=hparams['num_samples'], num_epochs=hparams['num_epochs'])
+
+#tuner = tune.Tuner.restore(
+#    path      = "~/ray_results/LightningTrainer_2023-07-08_14-18-31",
+#    trainable = lightning_trainer
+#)
+#tuner.fit()

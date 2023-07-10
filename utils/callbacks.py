@@ -114,3 +114,28 @@ class ActivationHistogramCallback(Callback):
 
     def on_fit_start(self, trainer, pl_module):
         self.generate_activations(trainer)
+
+
+class LogParametersCallback(Callback):
+    """
+    Callback that logs the model's parameters to tensorboard.
+
+    :param model: model for which the parameters should be logged
+    """
+    # TODO: Doesn't work. Fix might be to not use the lightning trainer, but to return model count in result dict.
+
+    def _report_params(self, model):
+        from ray.air import session
+        session.report({
+            'number_of_params': sum(p.numel() for p in model.parameters()),
+            'number_of_trainable_params': sum(p.numel() for p in model.parameters() if p.requires_grad),
+        })
+
+    def on_fit_start(self, trainer, pl_module):
+        self._report_params(pl_module)
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        self._report_params(pl_module)
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        self._report_params(pl_module)
