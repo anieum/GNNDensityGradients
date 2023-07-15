@@ -17,8 +17,8 @@ import torch.cuda
 
 hparams = {
     # Search parameters
-    'num_epochs'  : 1,
-    'num_samples' : 1,
+    'num_epochs'  : 15,
+    'num_samples' : 100,
 
     # Search space ---------------------------------------------
 
@@ -29,24 +29,24 @@ hparams = {
     # 'optimizer'     : tune.choice(['adam', 'sgd', 'rmsprop']), # NOT IMPLEMENTED
 
     # CConv architecture
-    'kernel_size'              : tune.choice([3, 4, 8, 16]),     # Default is 4; -1 is a magic value to use a dense layer
-    'num_hidden_layers'        : tune.choice([0, 1, 2, 3, 4]),   # Default is 2
-    'input_layer_out_channels' : tune.choice([8, 16, 32, 64]),   # Default is 32
-    'hidden_units'             : tune.choice([32, 48, 64, 128]), # Default is 64
+    'kernel_size'              : tune.choice([1, 2, 3, 4, 8]),       # Default is 4
+    'num_hidden_layers'        : tune.choice([0, 1, 2, 3, 4]),       # Default is 2
+    'input_layer_out_channels' : tune.choice([4, 8, 16, 32, 64]),    # Default is 32
+    'hidden_units'             : tune.choice([16, 32, 48, 64, 128]), # Default is 64
 
     # CConv operation parameters
     'intermediate_activation_fn'        : tune.choice(['ReLU', 'Tanh', 'GeLU', 'Leaky_ReLU']),                                # Default is ReLU; Alternives     : 'tanh',             'sigmoid', 'leaky_relu', 'GeLU'
-    'interpolation'                     : tune.choice(['linear', 'nearest_neighbor', 'linear_border']),                       # Default is linear; Alternatives : 'nearest_neighbor', 'linear_border'
-    'align_corners'                     : tune.choice([True, False]),                                                         # Default is True
-    'normalize'                         : tune.choice([True, False]),                                                         # Default is False
+    'interpolation'                     : tune.choice(['linear', 'nearest_neighbor']),                                        # Default is linear; Alternatives : 'nearest_neighbor', 'linear_border'
     'window_function'                   : tune.choice(['None', 'poly6', 'gaussian']),                                         # Default is poly6; Alternatives  : 'gaussian',         'cubic_spline'
     'coordinate_mapping'                : tune.choice(['ball_to_cube_volume_preserving', 'ball_to_cube_radial', 'identity']), # Default is ball_to_cube_volume_preserving
-    'filter_extent'                     : tune.loguniform(0.025 * 3 * 1.0, 0.025 * 6 * 1.5),                                  # Default is 0.025 * 6 * 1.5 = 0.225
+    'filter_extent'                     : tune.loguniform(0.025 * 3 * 1.0, 0.19),                                             # Default is 0.025 * 6 * 1.5 = 0.225
     'radius_search_ignore_query_points' : tune.choice([True, False]),                                                         # Default is False
     'use_dense_layer_for_centers'       : tune.choice([True, False]),                                                         # Default is False
 
     # Static parameters -----------------------------------------
-    'out_units'  : 1,           # 1 for temporal density gradient, 3 for spatial density gradient
+    'out_units'     : 1,     # 1 for temporal density gradient, 3 for spatial density gradient
+    'align_corners' : True,  # Default is True
+    'normalize'     : False, # Default is False
 
     # Dataset
     'dataset_dir' : 'datasets/data/dam_break_preprocessed/train',
@@ -56,7 +56,7 @@ hparams = {
     'device'      : 'cuda',
 
     # Training
-    'limit_train_batches' : 0.01,  # Use only 10% of the training data per epoch; default is 1.0
+    'limit_train_batches' : 0.1,  # Use only 10% of the training data per epoch; default is 1.0
     'limit_val_batches'   : 0.1,  # Use only 10% of the validation data per epoch; default is 1.0
 }
 
