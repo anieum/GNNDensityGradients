@@ -17,7 +17,7 @@ import torch.cuda
 
 hparams = {
     # Search parameters
-    'num_epochs'  : 15,
+    'num_epochs'  : 25,
     'num_samples' : 100,
 
     # Search space ---------------------------------------------
@@ -49,10 +49,10 @@ hparams = {
     'normalize'     : False, # Default is False
 
     # Dataset
-    'dataset_dir' : 'datasets/data/dam_break_preprocessed/train',
+    'dataset_dir' : 'datasets/data/dpi_RAM2/dpi_dam_break/train',
     'data_split'  : (0.7, 0.15, 0.15),
     'shuffle'     : True,
-    'cache'       : True,         # Preprocess and preload dataset into memory (GPU memory if cuda)
+    'cache'       : False,         # Preprocess and preload dataset into memory (GPU memory if cuda)
     'device'      : 'cuda',
 
     # Training
@@ -69,11 +69,12 @@ datamodule = DensityDataModule(
     cache      = hparams['cache'],
     device     = hparams['device']
 )
-logger = TensorBoardLogger('lightning_logs', name='cconv-hparam-search', version='.')
+logger = TensorBoardLogger('logs', name='srch', version='.')
 
 # DO NOT CACHE THE DATAMODULE IF IT IS PASSED DIRECTLY WITHOUT LOADERS.
 # OTHERWISE RAY TUNE WILL SERIALIZE THE ENTIRE DATASET AND BLOW UP MEMORY AND DISK SPACE
 datamodule.setup('fit')
+# datamodule.to('cpu')  this potentially causes the datamodule to be serialized and sent to the workers, instead of the loaders
 torch.cuda.empty_cache()
 
 train_loader = datamodule.train_dataloader()
@@ -93,7 +94,7 @@ lightning_config = (
         callbacks           = [LogParametersCallback()],
     )
     .fit_params(train_dataloaders=train_loader, val_dataloaders=val_loader)
-    .checkpointing(monitor='val_loss', mode='min', save_top_k=2)
+    .checkpointing(monitor='val_loss', mode='min', save_top_k=1)
     .build()
 )
 
@@ -104,19 +105,19 @@ lightning_trainer = LightningTrainer(
     scaling_config = ScalingConfig(
         num_workers          = 1,
         use_gpu              = True,
-        resources_per_worker = {'CPU': 2, 'GPU': 0.5}
+        resources_per_worker = {'CPU': 2, 'GPU': 1}
     ),
     run_config = RunConfig(
         checkpoint_config = CheckpointConfig(
-            num_to_keep                = 2,
+            num_to_keep                = 1,
             checkpoint_score_attribute = 'val_loss',
             checkpoint_score_order     = 'min',
         ),
     )
 )
 
-def tune_models(num_samples=10, num_epochs=10):
-    scheduler = ASHAScheduler(max_t=num_epochs, grace_period=1, reduction_factor=2)
+def tune_models(num_samples=100, num_epochs=25):
+    scheduler = ASHAScheduler(max_t=num_epochs, grace_period=2, reduction_factor=2)
 
     # Todo: search algorithm (the standard is either hyperopt, grid or random search)
     # https://docs.ray.io/en/latest/tune/api/suggestion.html
@@ -142,7 +143,7 @@ print('Cuda is available:', torch.cuda.is_available())
 tune_models(num_samples=hparams['num_samples'], num_epochs=hparams['num_epochs'])
 
 #tuner = tune.Tuner.restore(
-#    path      = "~/ray_results/LightningTrainer_2023-07-08_14-18-31",
+#    path      = "~/ray_results/LightningTrainer_2023-07-24_14-31-12",
 #    trainable = lightning_trainer
 #)
 #tuner.fit()
