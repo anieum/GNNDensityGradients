@@ -198,3 +198,39 @@ def save_checkpoint(trainer, model, save_path):
     path = os.path.join(save_path, time + '_version_' + str(trainer.logger.version) + '.ckpt')
     print("Saving checkpoint to {}".format(path))
     trainer.save_checkpoint(path)
+
+def lock_training():
+    """
+    Locks the training by creating a file in the ray_results directory. This is used to prevent multiple training runs from running at the same time.
+    If the old run stopped unfinished, this is also used to automatically resume the run.
+    """
+
+    if os.path.exists(os.path.expanduser('~/ray_results/.lock')):
+        raise RuntimeError('Training is already running')
+
+    with open(os.path.expanduser('~/ray_results/.lock'), 'w') as f:
+        f.write('Training is currently running')
+
+def unlock_training():
+    """
+    Delete the lock file to indicate that the training has finished.
+    """
+    if os.path.exists(os.path.expanduser('~/ray_results/.lock')):
+        os.remove(os.path.expanduser('~/ray_results/.lock'))
+        
+def has_finished_training():
+    """
+    Returns false if the lock file exists, true otherwise.
+    """
+    return not os.path.exists(os.path.expanduser('~/ray_results/.lock'))
+
+def get_last_training_run():
+    """
+    Returns the path to the last training run.
+
+    Note: It is NOT guaranteed that newest folder in the directory actually is the last training run.
+    """
+    if len(glob(os.path.expanduser('~/ray_results/*'))) == 0:
+        raise Exception('No training runs found')
+
+    return max(glob(os.path.expanduser('~/ray_results/*')), key=os.path.getmtime)

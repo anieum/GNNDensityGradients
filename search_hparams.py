@@ -15,9 +15,17 @@ from ray.tune.schedulers import ASHAScheduler
 import torch.cuda
 
 
+# If this option is true, training will be resumed, if an old training run was not finished.
+# This is determined by the existence of a .lock file in the log directory.
+CONTINUE_CRASHED_RUN = True
+
+if not CONTINUE_CRASHED_RUN:
+    unlock_training()
+
+
 hparams = {
     # Search parameters
-    'num_epochs'  : 25,
+    'num_epochs'  : 30,
     'num_samples' : 100,
 
     # Search space ---------------------------------------------
@@ -39,7 +47,7 @@ hparams = {
     'interpolation'                     : tune.choice(['linear', 'nearest_neighbor']),                                        # Default is linear; Alternatives : 'nearest_neighbor', 'linear_border'
     'window_function'                   : tune.choice(['None', 'poly6', 'gaussian']),                                         # Default is poly6; Alternatives  : 'gaussian',         'cubic_spline'
     'coordinate_mapping'                : tune.choice(['ball_to_cube_volume_preserving', 'ball_to_cube_radial', 'identity']), # Default is ball_to_cube_volume_preserving
-    'filter_extent'                     : tune.loguniform(0.025 * 3 * 1.0, 0.19),                                             # Default is 0.025 * 6 * 1.5 = 0.225
+    'filter_extent'                     : tune.loguniform(0.025 * 3 * 1.0, 0.2),                                             # Default is 0.025 * 6 * 1.5 = 0.225
     'radius_search_ignore_query_points' : tune.choice([True, False]),                                                         # Default is False
     'use_dense_layer_for_centers'       : tune.choice([True, False]),                                                         # Default is False
 
@@ -49,7 +57,7 @@ hparams = {
     'normalize'     : False, # Default is False
 
     # Dataset
-    'dataset_dir' : 'datasets/data/dpi_RAM2/dpi_dam_break/train',
+    'dataset_dir' : 'datasets/data/dpi_dam_break/train',
     'data_split'  : (0.7, 0.15, 0.15),
     'shuffle'     : True,
     'cache'       : False,         # Preprocess and preload dataset into memory (GPU memory if cuda)
@@ -74,7 +82,7 @@ logger = TensorBoardLogger('logs', name='srch', version='.')
 # DO NOT CACHE THE DATAMODULE IF IT IS PASSED DIRECTLY WITHOUT LOADERS.
 # OTHERWISE RAY TUNE WILL SERIALIZE THE ENTIRE DATASET AND BLOW UP MEMORY AND DISK SPACE
 datamodule.setup('fit')
-# datamodule.to('cpu')  this potentially causes the datamodule to be serialized and sent to the workers, instead of the loaders
+# datamodule.to('cpu')  # this potentially causes the datamodule to be serialized and sent to the workers, instead of the loaders
 torch.cuda.empty_cache()
 
 train_loader = datamodule.train_dataloader()
@@ -105,7 +113,7 @@ lightning_trainer = LightningTrainer(
     scaling_config = ScalingConfig(
         num_workers          = 1,
         use_gpu              = True,
-        resources_per_worker = {'CPU': 2, 'GPU': 1}
+        resources_per_worker = {'CPU': 1, 'GPU': 1./3}
     ),
     run_config = RunConfig(
         checkpoint_config = CheckpointConfig(
@@ -140,10 +148,18 @@ def tune_models(num_samples=100, num_epochs=25):
     best_result
 
 print('Cuda is available:', torch.cuda.is_available())
-tune_models(num_samples=hparams['num_samples'], num_epochs=hparams['num_epochs'])
 
-#tuner = tune.Tuner.restore(
-#    path      = "~/ray_results/LightningTrainer_2023-07-24_14-31-12",
-#    trainable = lightning_trainer
-#)
-#tuner.fit()
+if not has_finished_training() and CONTINUE_CRASHED_RUN:
+    latest_run = get_last_training_run()
+    print('Restoring training from', latest_run)
+
+    tuner = tune.Tuner.restore(
+        path      = latest_run,
+        trainable = lightning_trainer
+    )
+    tuner.fit()
+else:
+    lock_training()
+    tune_models(num_samples=hparams['num_samples'], num_epochs=hparams['num_epochs'])
+
+unlock_training()
