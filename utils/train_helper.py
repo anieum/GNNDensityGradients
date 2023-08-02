@@ -198,3 +198,39 @@ def save_checkpoint(trainer, model, save_path):
     path = os.path.join(save_path, time + '_version_' + str(trainer.logger.version) + '.ckpt')
     print("Saving checkpoint to {}".format(path))
     trainer.save_checkpoint(path)
+
+def load_hparams(file_path):
+    """
+    Loads the hyperparameters from a file.
+    """
+
+    import json, copy
+
+    with open(file_path, 'r') as file:
+        content = file.read()
+
+    content = json.loads(content)
+
+    hparams = content['lightning_config']['_module_init_config']['hparams']
+
+    return copy.deepcopy(hparams)
+
+def update_hparams(hparams, new_hparams):
+    """
+    Updates the hyperparameters with the given new parameters.
+    """
+    import copy
+
+    hparams_to_ignore = ['load_checkpoint', 'save_path', 'load_path', 'params_path', 'model',
+                         'dataset_dir', 'num_epochs', 'limit_train_batches', 'limit_val_batches', 'device']
+
+    for key in new_hparams.keys():
+        if key in hparams_to_ignore:
+            continue
+
+        if key in hparams:
+            hparams[key] = new_hparams[key]
+        else:
+            print("WARNING: Parameter {} does not exist".format(key))
+
+    return copy.deepcopy(hparams)

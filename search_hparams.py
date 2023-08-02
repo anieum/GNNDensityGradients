@@ -49,7 +49,7 @@ hparams = {
     'normalize'     : False, # Default is False
 
     # Dataset
-    'dataset_dir' : 'datasets/data/dpi_RAM2/dpi_dam_break/train',
+    'dataset_dir' : 'datasets/data/dam_break_preprocessed/train',
     'data_split'  : (0.7, 0.15, 0.15),
     'shuffle'     : True,
     'cache'       : False,         # Preprocess and preload dataset into memory (GPU memory if cuda)
@@ -105,7 +105,7 @@ lightning_trainer = LightningTrainer(
     scaling_config = ScalingConfig(
         num_workers          = 1,
         use_gpu              = True,
-        resources_per_worker = {'CPU': 2, 'GPU': 1}
+        resources_per_worker = {'CPU': 1, 'GPU': 1. / 3}
     ),
     run_config = RunConfig(
         checkpoint_config = CheckpointConfig(
