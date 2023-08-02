@@ -184,7 +184,7 @@ def collect_data(file_path):
 
 # Collect all results and parameters, sort by validation loss and output everything as csv.
 file_path = '/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20' # folder with trials
-out_path = '/home/jakob/ray_results3/collected_data.csv' # output path
+out_path  = '/home/jakob/ray_results3/collected_data.csv'                   # output path
 
 collected_data = collect_data(file_path)
 print('Saving data...')
