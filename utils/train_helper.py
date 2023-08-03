@@ -221,7 +221,7 @@ def update_hparams(hparams, new_hparams):
     """
     import copy
 
-    hparams_to_ignore = ['load_checkpoint', 'save_path', 'load_path', 'params_path', 'model',
+    hparams_to_ignore = ['load_checkpoint', 'save_path', 'load_path', 'params_path', 'model', 'cache',
                          'dataset_dir', 'num_epochs', 'limit_train_batches', 'limit_val_batches', 'device']
 
     for key in new_hparams.keys():
