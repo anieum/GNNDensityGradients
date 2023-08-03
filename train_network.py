@@ -17,7 +17,7 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
         # General ---------------------------------------------------
         'random_seed'       : None, # If set causes deterministic training
         'only_seed_weights' : True, # If True, only the weights are initialized with the seed, not the entire training process
-        'experiment_name'   : '',   # is appended to save_path
+        'experiment_name'   : 'anova',   # is appended to save_path
         'name'              : None, # Sets name of log directory for run (If None, then it's 'version_x')
 
         # Dataset
@@ -33,19 +33,19 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
 
         'num_training_nodes'  : 1,    # number of nodes to train on (e.g. 1 GPU)
         'num_workers'         : 0,    # number of workers for dataloader (e.g. 2 worker threads)
-        'num_epochs'          : 1,   # Per epoch with 1000 files containing 6600 samples expect 6 minutes on a 1080 Ti
-        'limit_train_batches' : 0.01,  # Use only 50% of the training data per epoch; default is 1.0
+        'num_epochs'          : 6,   # Per epoch with 1000 files containing 6600 samples expect 6 minutes on a 1080 Ti
+        'limit_train_batches' : 0.5,  # Use only 50% of the training data per epoch; default is 1.0
         'limit_val_batches'   : 0.1,  # Use only 10% of the validation data per epoch; default is 1.0
 
         # Logging
         'log_every_n_steps' : 1,
-        'val_every_n_epoch' : 3,
+        'val_every_n_epoch' : 2,
 
         # Checkpoints
         'load_checkpoint' : False,
-        'save_path'       : 'lightning_logs/best',  # checkpoint folder
-        'load_path'       : '/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20/00093_93/rank_0/logs/srch/checkpoints/last.ckpt',
-        'params_path'     : '/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20/00093_93/params.json',
+        'save_path'       : 'lightning_logs/best', # checkpoint folder
+        'load_path'       : '',                    # '/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20/00093_93/rank_0/logs/srch/checkpoints/last.ckpt',
+        'params_path'     : '',                    # '/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20/00999_999/params.json',
         'model'           : CConvModel,
 
         # CConv parameters -------------------------------------------
@@ -71,15 +71,17 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
 
     new_random_seed = np.random.randint(0, 1000000)
 
+
+    if params_path is not None:
+        print("Loading hyperparameters from checkpoint...")
+        hparams['params_path'] = params_path
+        loaded_hparams         = load_hparams(file_path=hparams['params_path'])
+        hparams                = update_hparams(hparams=hparams, new_hparams=loaded_hparams)
+
     if checkpoint_path is not None:
         hparams['load_checkpoint'] = True
         hparams['load_path']       = checkpoint_path
         hparams['params_path']     = params_path
-
-    if params_path is not None:
-        print("Loading hyperparameters from checkpoint...")
-        loaded_hparams = load_hparams(file_path=hparams['params_path'])
-        hparams        = update_hparams(hparams=hparams, new_hparams=loaded_hparams)
 
     if random_seed is not None:
         hparams['random_seed'] = random_seed
@@ -129,9 +131,9 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
     ]
 
     logger = TensorBoardLogger(
-        save_dir='lightning_logs',
-        name=hparams['experiment_name'],
-        version=hparams['name'],
+        save_dir = 'lightning_logs',
+        name     = hparams['experiment_name'],
+        version  = hparams['name'],
     )
     print("Logging to:", logger.log_dir)
 
@@ -146,6 +148,7 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
         logger                  = logger,
         callbacks               = callbacks,
     )
+    # trainer.validate(model, datamodule=density_data)
 
 
     # DISABLED, the resulting learning rate is way too low

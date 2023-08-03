@@ -221,8 +221,11 @@ def update_hparams(hparams, new_hparams):
     """
     import copy
 
-    hparams_to_ignore = ['load_checkpoint', 'save_path', 'load_path', 'params_path', 'model', 'cache',
-                         'dataset_dir', 'num_epochs', 'limit_train_batches', 'limit_val_batches', 'device']
+    hparams_to_ignore = ['load_checkpoint', 'save_path', 'load_path', 'params_path', 'model', 'cache', 'shuffle'
+                         'dataset_dir', 'num_epochs', 'limit_train_batches', 'limit_val_batches', 'device',
+                         'data_split', 'shuffle', 'batch_size', 'num_workers', 'num_training_nodes', 'num_gpus',
+                         'num_training_nodes', 'num_workers', 'num_epochs', 'limit_train_batches', 'limit_val_batches'
+                         'log_every_n_steps', 'val_every_n_epoch']
 
     for key in new_hparams.keys():
         if key in hparams_to_ignore:
