@@ -9,22 +9,23 @@ from datasets.vtk_dataset import VtkDataset
 from datasets.density_data_module import DensityDataModule
 import numpy as np
 import argparse
+import time, datetime
 
 
 
 def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
     hparams = {
         # General ---------------------------------------------------
-        'random_seed'       : None, # If set causes deterministic training
-        'only_seed_weights' : True, # If True, only the weights are initialized with the seed, not the entire training process
-        'experiment_name'   : 'anova',   # is appended to save_path
-        'name'              : None, # Sets name of log directory for run (If None, then it's 'version_x')
+        'random_seed'       : None,    # If set causes deterministic training
+        'only_seed_weights' : True,    # If True, only the weights are initialized with the seed, not the entire training process
+        'experiment_name'   : 'anova', # is appended to save_path
+        'name'              : None,    # Sets name of log directory for run (If None, then it's 'version_x')
 
         # Dataset
         'dataset_dir' : 'datasets/data/dam_break_preprocessed/train',
         'data_split'  : (0.7, 0.15, 0.15),
         'shuffle'     : True,
-        'cache'       : False,                                         # Preprocess and preload dataset into memory
+        'cache'       : True,                                         # Preprocess and preload dataset into memory
 
         # Training
         'batch_size'    : 2,
@@ -33,7 +34,7 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
 
         'num_training_nodes'  : 1,    # number of nodes to train on (e.g. 1 GPU)
         'num_workers'         : 0,    # number of workers for dataloader (e.g. 2 worker threads)
-        'num_epochs'          : 6,   # Per epoch with 1000 files containing 6600 samples expect 6 minutes on a 1080 Ti
+        'num_epochs'          : 20,   # Per epoch with 1000 files containing 6600 samples expect 6 minutes on a 1080 Ti
         'limit_train_batches' : 0.5,  # Use only 50% of the training data per epoch; default is 1.0
         'limit_val_batches'   : 0.1,  # Use only 10% of the validation data per epoch; default is 1.0
 
@@ -64,9 +65,9 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
         "normalize"                         : False,                            # Default is False
         "window_function"                   : "poly6",                          # Default is poly6
         "coordinate_mapping"                : "ball_to_cube_volume_preserving", # Default is ball_to_cube_volume_preserving
-        "filter_extent"                     : 0.12574419077161608,              # Default is 0.025 * 6 * 1.5 = 0.225
+        "filter_extent"                     : 0.225,                            # Default is 0.025 * 6 * 1.5 = 0.225
         "radius_search_ignore_query_points" : False,                            # Default is False
-        "use_dense_layer_for_centers"       : True,                             # Default is False; Useful when kernel size even (no center element) and ‘radius_search_ignore_query_points’ has been set to True.
+        "use_dense_layer_for_centers"       : False,                             # Default is False; Useful when kernel size even (no center element) and ‘radius_search_ignore_query_points’ has been set to True.
     }
 
     new_random_seed = np.random.randint(0, 1000000)
@@ -100,6 +101,13 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
     validate_hparams(hparams)
     print("Hyperparameters:", hparams)
 
+    logger = TensorBoardLogger(
+        save_dir = 'lightning_logs',
+        name     = hparams['experiment_name'],
+        version  = hparams['name'],
+    )
+    print("Logging to:", logger.log_dir)
+
     # Load model
     model = hparams['model'](hparams)
     if hparams['load_checkpoint']:
@@ -107,6 +115,9 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
 
     if hparams['random_seed'] is not None and hparams['only_seed_weights']:
         pl.seed_everything(new_random_seed, workers=True)
+
+    hparams['num_parameters'] = count_parameters(model)
+    logger.log_hyperparams(hparams)
 
     # Datasets
     density_data = DensityDataModule(
@@ -130,13 +141,6 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
         # ActivationHistogramCallback(model=model)
     ]
 
-    logger = TensorBoardLogger(
-        save_dir = 'lightning_logs',
-        name     = hparams['experiment_name'],
-        version  = hparams['name'],
-    )
-    print("Logging to:", logger.log_dir)
-
     trainer = pl.Trainer(
         num_nodes               = hparams['num_training_nodes'],
         max_epochs              = hparams['num_epochs'],
@@ -154,12 +158,18 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
     # DISABLED, the resulting learning rate is way too low
     # model.learning_rate = find_learning_rate(trainer, model, density_data)
 
+    print("Starting time:", datetime.datetime.now())
+    start_time = time.time()
+
     # Train
     if hparams['load_checkpoint']:
         print("Resuming training...")
         trainer.fit(model, datamodule=density_data, ckpt_path=hparams['load_path'])
     else:
         trainer.fit(model, datamodule=density_data)
+
+    print("Time in nice format:", datetime.timedelta(seconds=time.time() - start_time))
+    logger.log_metrics({'time': time.time() - start_time})
 
     # Save model
     save_checkpoint(trainer, model, hparams['save_path'])

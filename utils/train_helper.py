@@ -237,3 +237,9 @@ def update_hparams(hparams, new_hparams):
             print("WARNING: Parameter {} does not exist".format(key))
 
     return copy.deepcopy(hparams)
+
+def count_parameters(model):
+    """
+    Counts the number of trainable parameters in the given model.
+    """
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)

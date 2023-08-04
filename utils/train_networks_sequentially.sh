@@ -18,31 +18,59 @@ trainer_dir="/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20"
 # - Worst: 393589
 
 # ANOVA test: initial vs. final performance
-python train_network.py --name "00031_run1" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run1" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run1" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run1" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run1" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run1" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
 
-python train_network.py --name "00031_run2" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run2" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run2" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run2" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run2" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run2" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
 
-python train_network.py --name "00031_run3" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run3" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run3" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run3" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run3" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run3" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
 
-python train_network.py --name "00031_run4" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run4" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run4" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run4" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run4" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run4" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
 
-python train_network.py --name "00031_run5" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run5" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
-python train_network.py --name "00031_run5" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run5" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run5" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run5" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
 
-# python train_network.py --name "00031_seedsearch" --seed 333 --params_path "${trainer_dir}/00031_31/params.json"
-# python train_network.py --name "00031_seedsearch" --seed 444 --params_path "${trainer_dir}/00031_31/params.json"
-# python train_network.py --name "00031_seedsearch" --seed 555 --params_path "${trainer_dir}/00031_31/params.json"
-# python train_network.py --name "00031_seedsearch" --seed 666 --params_path "${trainer_dir}/00031_31/params.json"
-# python train_network.py --name "00031_seedsearch" --seed 777 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run6" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run6" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run6" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+
+# python train_network.py --name "00031_run7" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run7" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run7" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+#
+# python train_network.py --name "00031_run8" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run8" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run8" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+
+# python train_network.py --name "00031_run9" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run9" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run9" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+
+# python train_network.py --name "00031_run10" --seed 278346 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run10" --seed 147923 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_run10" --seed 393589 --params_path "${trainer_dir}/00031_31/params.json"
+
+#python train_network.py --name "00031_random" --seed 716915 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_random" --seed 601457 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_random" --seed 144861 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_random" --seed 774658 --params_path "${trainer_dir}/00031_31/params.json"
+# python train_network.py --name "00031_random" --seed 435801 --params_path "${trainer_dir}/00031_31/params.json"
+
+# python train_network.py --name "default1"
+python train_network.py --name "default2"
+python train_network.py --name "default3"
+python train_network.py --name "default4"
+python train_network.py --name "default5"
 
 # Step 1: Find seeds with notable initial performance differences
 # Step 2: Train 10 networks each with the seeds.
+# Random seeds:
+# 716915 601457 144861 774658 435801
