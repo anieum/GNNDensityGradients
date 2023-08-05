@@ -36,7 +36,7 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
         'num_workers'         : 0,    # number of workers for dataloader (e.g. 2 worker threads)
         'num_epochs'          : 20,   # Per epoch with 1000 files containing 6600 samples expect 6 minutes on a 1080 Ti
         'limit_train_batches' : 0.5,  # Use only 50% of the training data per epoch; default is 1.0
-        'limit_val_batches'   : 0.1,  # Use only 10% of the validation data per epoch; default is 1.0
+        'limit_val_batches'   : 0.5,  # Use only 10% of the validation data per epoch; default is 1.0
 
         # Logging
         'log_every_n_steps' : 1,
@@ -168,7 +168,7 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
     else:
         trainer.fit(model, datamodule=density_data)
 
-    print("Time in nice format:", datetime.timedelta(seconds=time.time() - start_time))
+    print("Time elapsed:", datetime.timedelta(seconds=time.time() - start_time))
     logger.log_metrics({'time': time.time() - start_time})
 
     # Save model

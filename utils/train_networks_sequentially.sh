@@ -65,10 +65,16 @@ trainer_dir="/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20"
 # python train_network.py --name "00031_random" --seed 435801 --params_path "${trainer_dir}/00031_31/params.json"
 
 # python train_network.py --name "default1"
-python train_network.py --name "default2"
-python train_network.py --name "default3"
-python train_network.py --name "default4"
-python train_network.py --name "default5"
+# python train_network.py --name "default2"
+# python train_network.py --name "default3"
+# python train_network.py --name "default4"
+# python train_network.py --name "default5"
+
+python train_network.py --name "default6"
+python train_network.py --name "default7"
+python train_network.py --name "default8"
+python train_network.py --name "default9"
+python train_network.py --name "default10"
 
 # Step 1: Find seeds with notable initial performance differences
 # Step 2: Train 10 networks each with the seeds.
