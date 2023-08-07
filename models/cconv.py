@@ -27,6 +27,10 @@ class CConvModel(pl.LightningModule):
         self.hparams.update(hparams)
         self.learning_rate = hparams['lr'] if 'lr' in hparams else hparams['learning_rate']
 
+        # Support bayesian search
+        for key in 'kernel_size', 'num_hidden_layers', 'input_layer_out_channels', 'hidden_units':
+            hparams[key] = int(hparams[key])
+
         self.conv_hprams = {
             'kernel_size'                      : torch.tensor([hparams['kernel_size'], hparams['kernel_size'], hparams['kernel_size']], device=self.device),
             'use_dense_layer_for_center'       : hparams['kernel_size'] == -1,               # -1 is a magic value, not a real kernel_size
