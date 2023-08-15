@@ -16,19 +16,15 @@ def rename_subfolders(directory_path):
     00000_0, 00000_1, 00000_2, ...
     """
 
-    # Define the regular expression pattern to find the desired substring
-    pattern = r'_\w+_(\d+_\d+)'
-
     # Iterate through the subdirectories in the given directory
     for subfolder in os.listdir(directory_path):
         subfolder_path = os.path.join(directory_path, subfolder)
 
         # Check if the item is a directory and not a file
         if os.path.isdir(subfolder_path):
-            # Extract the desired substring from the subfolder name using the regular expression
-            matches = re.findall(pattern, subfolder)
-            if matches:
-                new_name = matches[0]
+            basename = os.path.basename(subfolder_path)
+            if basename.startswith("LightningTrainer_"):
+                new_name = "_".join(basename.split("_")[1:3])
                 new_subfolder_path = os.path.join(directory_path, new_name)
 
                 # Rename the subfolder

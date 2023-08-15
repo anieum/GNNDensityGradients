@@ -18,14 +18,14 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
         # General ---------------------------------------------------
         'random_seed'       : None,    # If set causes deterministic training
         'only_seed_weights' : True,    # If True, only the weights are initialized with the seed, not the entire training process
-        'experiment_name'   : 'anova', # is appended to save_path
+        'experiment_name'   : 'bayes', # is appended to save_path
         'name'              : None,    # Sets name of log directory for run (If None, then it's 'version_x')
 
         # Dataset
         'dataset_dir' : 'datasets/data/dam_break_preprocessed/train',
         'data_split'  : (0.7, 0.15, 0.15),
         'shuffle'     : True,
-        'cache'       : True,                                         # Preprocess and preload dataset into memory
+        'cache'       : False,                                         # Preprocess and preload dataset into memory
 
         # Training
         'batch_size'    : 2,
@@ -34,9 +34,9 @@ def main(checkpoint_path=None, params_path=None, random_seed=None, name=None):
 
         'num_training_nodes'  : 1,    # number of nodes to train on (e.g. 1 GPU)
         'num_workers'         : 0,    # number of workers for dataloader (e.g. 2 worker threads)
-        'num_epochs'          : 20,   # Per epoch with 1000 files containing 6600 samples expect 6 minutes on a 1080 Ti
-        'limit_train_batches' : 0.5,  # Use only 50% of the training data per epoch; default is 1.0
-        'limit_val_batches'   : 0.5,  # Use only 10% of the validation data per epoch; default is 1.0
+        'num_epochs'          : 32,   # Per epoch with 1000 files containing 6600 samples expect 6 minutes on a 1080 Ti
+        'limit_train_batches' : 1000, # Use only 50% of the training data per epoch; default is 1.0
+        'limit_val_batches'   : 250,  # Use only 10% of the validation data per epoch; default is 1.0
 
         # Logging
         'log_every_n_steps' : 1,

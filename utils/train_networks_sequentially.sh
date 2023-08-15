@@ -2,7 +2,8 @@
 # conda activate CConv
 
 cd ..
-trainer_dir="/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20"
+# trainer_dir="/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20"
+trainer_dir="/home/jakob/ray_results4/LightningTrainer_2023-08-07_20-52-58"
 
 # echo "${trainer_dir}/00031_31/logs/srch/checkpoints/last.ckpt"
 
@@ -70,11 +71,13 @@ trainer_dir="/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20"
 # python train_network.py --name "default4"
 # python train_network.py --name "default5"
 
-python train_network.py --name "default6"
-python train_network.py --name "default7"
-python train_network.py --name "default8"
-python train_network.py --name "default9"
-python train_network.py --name "default10"
+# python train_network.py --name "default6"
+# python train_network.py --name "default7"
+# python train_network.py --name "default8"
+# python train_network.py --name "default9"
+# python train_network.py --name "default10"
+
+python train_network.py --name "best_bayes" --checkpoint_path "${trainer_dir}/0e385726_32/rank_0/logs/srch/checkpoints/last.ckpt" --params_path "${trainer_dir}/0e385726_32/params.json"
 
 # Step 1: Find seeds with notable initial performance differences
 # Step 2: Train 10 networks each with the seeds.
