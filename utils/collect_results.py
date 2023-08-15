@@ -139,6 +139,7 @@ def get_run_result(folder_path):
 
     result_path = os.path.join(folder_path, 'result.json')
     results = df_from_file(result_path)
+    results['Name'] = os.path.basename(folder_path)
     return get_best_result(results)
 
 def transform_string(x):
@@ -147,9 +148,17 @@ def transform_string(x):
     params and results can be merged.
     """
 
-    split_string = x.split('_')
-    new_string = split_string[1] + '_' + str(int(split_string[1]))
-    return new_string
+    #split_string = x.split('_')
+    #print(split_string)
+    #new_string = split_string[1] + '_' + str(int(split_string[1]))
+    return x #new_string
+
+def get_name_from_folder(folder_path):
+    """
+    Get the name from a folder path.
+    """
+
+    return os.path.basename(folder_path).split("_")[0]
 
 def collect_data(file_path):
     """
@@ -163,7 +172,6 @@ def collect_data(file_path):
     print('Collecting results...')
     results = [get_run_result(folder_path) for folder_path in tqdm(subdirs, desc='Progress', unit='folder')]
     results = pd.concat(results, axis=0)
-    results['Name'] = results['Trial Id'].apply(transform_string)
 
     # get the parameters for all subdirectories
     print('Collecting parameters...')
@@ -179,8 +187,8 @@ def collect_data(file_path):
 
 
 # Collect all results and parameters, sort by validation loss and output everything as csv.
-file_path = '/home/jakob/ray_results3/LightningTrainer_2023-07-31_17-28-20' # folder with trials
-out_path  = '/home/jakob/ray_results3/collected_data.csv'                   # output path
+file_path = '/home/jakob/ray_results4/LightningTrainer_2023-08-07_20-52-58' # folder with trials
+out_path  = '/home/jakob/ray_results4/collected_data.csv'                   # output path
 
 collected_data = collect_data(file_path)
 print('Saving data...')
