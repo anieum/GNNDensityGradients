@@ -123,12 +123,15 @@ def get_best_result(result_df):
     number_of_params = int(result_df['Number Of Params'].values[0])
     number_of_trainable_params = int(result_df['Number Of Trainable Params'].values[0])
 
-    best_result = result_df.sort_values('Val Loss', ascending=True).iloc[0]
+    # best_result = result_df.sort_values('Val Loss', ascending=True).iloc[0]
+    best_result = result_df.sort_values('Step', ascending=False).iloc[0]
+    best_loss = result_df['Val Loss'].min()
     out_df = pd.DataFrame(best_result).T
 
     # overwrite the number of parameters
     out_df['Number Of Params'] = number_of_params
     out_df['Number Of Trainable Params'] = number_of_trainable_params
+    out_df['Val Loss Best'] = best_loss
 
     return out_df
 
