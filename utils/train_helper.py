@@ -111,6 +111,12 @@ def transform_msgpack_file(filepath, transform):
 
 
 def prepocess_dataset_files(path, type='temp_grad', include_box=False, device = 'cpu'):
+    """
+    Adds and stores normalized gradient data to all *.zst files in the given directory.
+
+    This function is used to preprocess datasets for faster training.
+    """
+
     from tqdm import tqdm
     from utils.transforms import ToSample, AddDensity, AddTemporalDensityGradient, AddSpatialDensityGradient, NormalizeDensityData, ToNumpy
     from torchvision.transforms import Compose
