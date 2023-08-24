@@ -23,21 +23,18 @@ class DensityDataModule(pl.LightningDataModule):
         if not os.path.exists(data_dir):
             raise Exception("Data directory does not exist")
 
-        self.files = glob(os.path.join(data_dir, '*.zst'))
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.data_split = data_split
-        self.shuffle = shuffle
-        self.device = device
-        self.cache = cache
-        self.dataset = {}
+        self.files         = glob(os.path.join(data_dir, '*.zst'))
+        self.batch_size    = batch_size
+        self.num_workers   = num_workers
+        self.data_split    = data_split
+        self.shuffle       = shuffle
+        self.device        = device
+        self.cache         = cache
+        self.dataset       = {}
         self.total_dataset = None
 
-        self.transform = tf.Compose([
-            CorruptAttribute("pos", 0.005),
-            CorruptAttribute("vel", 0.005),
-        ])
-
+        # self.transform = tf.Compose([CorruptAttribute("pos", 0.005), CorruptAttribute("vel", 0.005)])
+        self.transform = None # TODO: Corrupt Attributes
 
         self.transform_once = self._get_density_transformations(target, include_bounding_box)
 
@@ -70,11 +67,11 @@ class DensityDataModule(pl.LightningDataModule):
             return
 
         self.total_dataset = SimulationDataset(
-            files = self.files,
-            transform = self.transform,
+            files          = self.files,
+            transform      = self.transform,
             transform_once = self.transform_once,
-            cache = self.cache,
-            device = self.device
+            cache          = self.cache,
+            device         = self.device
         )
 
         dataset = {}
@@ -86,10 +83,10 @@ class DensityDataModule(pl.LightningDataModule):
         return DataLoader(self.dataset["train"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
 
     def val_dataloader(self):
-        return DataLoader(self.dataset["val"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
+        return DataLoader(self.dataset["val"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
 
     def test_dataloader(self):
-        return DataLoader(self.dataset["test"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)
+        return DataLoader(self.dataset["test"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
 
     def predict_dataloader(self):
         return DataLoader(self.dataset["val"], collate_fn=self._collate_identity, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=self.shuffle)

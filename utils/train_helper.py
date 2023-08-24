@@ -111,6 +111,12 @@ def transform_msgpack_file(filepath, transform):
 
 
 def prepocess_dataset_files(path, type='temp_grad', include_box=False, device = 'cpu'):
+    """
+    Adds and stores normalized gradient data to all *.zst files in the given directory.
+
+    This function is used to preprocess datasets for faster training.
+    """
+
     from tqdm import tqdm
     from utils.transforms import ToSample, AddDensity, AddTemporalDensityGradient, AddSpatialDensityGradient, NormalizeDensityData, ToNumpy
     from torchvision.transforms import Compose
@@ -199,38 +205,47 @@ def save_checkpoint(trainer, model, save_path):
     print("Saving checkpoint to {}".format(path))
     trainer.save_checkpoint(path)
 
-def lock_training():
+def load_hparams(file_path):
     """
-    Locks the training by creating a file in the ray_results directory. This is used to prevent multiple training runs from running at the same time.
-    If the old run stopped unfinished, this is also used to automatically resume the run.
+    Loads the hyperparameters from a file.
     """
 
-    if os.path.exists(os.path.expanduser('~/ray_results/.lock')):
-        raise RuntimeError('Training is already running')
+    import json, copy
 
-    with open(os.path.expanduser('~/ray_results/.lock'), 'w') as f:
-        f.write('Training is currently running')
+    with open(file_path, 'r') as file:
+        content = file.read()
 
-def unlock_training():
-    """
-    Delete the lock file to indicate that the training has finished.
-    """
-    if os.path.exists(os.path.expanduser('~/ray_results/.lock')):
-        os.remove(os.path.expanduser('~/ray_results/.lock'))
-        
-def has_finished_training():
-    """
-    Returns false if the lock file exists, true otherwise.
-    """
-    return not os.path.exists(os.path.expanduser('~/ray_results/.lock'))
+    content = json.loads(content)
 
-def get_last_training_run():
-    """
-    Returns the path to the last training run.
+    hparams = content['lightning_config']['_module_init_config']['hparams']
 
-    Note: It is NOT guaranteed that newest folder in the directory actually is the last training run.
-    """
-    if len(glob(os.path.expanduser('~/ray_results/*'))) == 0:
-        raise Exception('No training runs found')
+    return copy.deepcopy(hparams)
 
-    return max(glob(os.path.expanduser('~/ray_results/*')), key=os.path.getmtime)
+def update_hparams(hparams, new_hparams):
+    """
+    Updates the hyperparameters with the given new parameters.
+    """
+    import copy
+
+    hparams_to_ignore = ['load_checkpoint', 'save_path', 'load_path', 'params_path', 'model', 'cache', 'shuffle'
+                         'dataset_dir', 'num_epochs', 'limit_train_batches', 'limit_val_batches', 'device',
+                         'data_split', 'shuffle', 'batch_size', 'num_workers', 'num_training_nodes', 'num_gpus',
+                         'num_training_nodes', 'num_workers', 'num_epochs', 'limit_train_batches', 'limit_val_batches'
+                         'log_every_n_steps', 'val_every_n_epoch']
+
+    for key in new_hparams.keys():
+        if key in hparams_to_ignore:
+            continue
+
+        if key in hparams:
+            hparams[key] = new_hparams[key]
+        else:
+            print("WARNING: Parameter {} does not exist".format(key))
+
+    return copy.deepcopy(hparams)
+
+def count_parameters(model):
+    """
+    Counts the number of trainable parameters in the given model.
+    """
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)

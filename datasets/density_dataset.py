@@ -30,7 +30,7 @@ class SimulationDataset(torch.utils.data.Dataset):
         - AddDensity
         - AddTemporalDensityGradient
         - NormalizeDensityData
-        
+
         :param files: list of paths to partio files
         :param transform: transform to apply to each sample
         :param transform_once: transform to apply to each sample once, after loading it from disk
@@ -72,7 +72,8 @@ class SimulationDataset(torch.utils.data.Dataset):
 
         # TODO: This is not the cleanest way to do this, as it makes one time transformations impossible, if density data is set.
         #       A better solution would be to have a flag that indicates if the dataset is preprepared.
-        if self.is_preprepared():
+        is_ready = self.is_preprepared()
+        if is_ready:
             print("Dataset is already preprepared. Not applying transform_once. (This means density & grads aren't recalculated.)")
             self.transform_once = None
         else:
@@ -139,7 +140,7 @@ class SimulationDataset(torch.utils.data.Dataset):
 
         It does so by checking the first sample of the first file.
         """
-        
+
         if len(self) == 0:
             return True
 

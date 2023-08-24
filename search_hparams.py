@@ -12,6 +12,7 @@ from ray.train.lightning import LightningTrainer, LightningConfigBuilder
 from ray import air, tune
 from ray.air.config import RunConfig, ScalingConfig, CheckpointConfig
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.search.bayesopt import BayesOptSearch
 import torch.cuda
 
 
@@ -25,31 +26,31 @@ if not CONTINUE_CRASHED_RUN:
 
 hparams = {
     # Search parameters
-    'num_epochs'  : 30,
-    'num_samples' : 100,
+    'num_epochs'  : 6, # TODO: 10
+    'num_samples' : 100, # TODO: 100
 
     # Search space ---------------------------------------------
 
     # General
-    'learning_rate' : tune.loguniform(1e-4, 1e-2),             # Default is 1e-3
+    'learning_rate' : tune.loguniform(2e-4, 6e-3),             # Default is 1e-3
     'batch_size'    : 2,                                       # Default is 10 tune.choice([1, 2, 4, 8]),
     # 'regularization': tune.choice([None, 'l1', 'l2']),         # NOT IMPLEMENTED
     # 'optimizer'     : tune.choice(['adam', 'sgd', 'rmsprop']), # NOT IMPLEMENTED
 
     # CConv architecture
-    'kernel_size'              : tune.choice([1, 2, 3, 4, 8]),       # Default is 4
-    'num_hidden_layers'        : tune.choice([0, 1, 2, 3, 4]),       # Default is 2
-    'input_layer_out_channels' : tune.choice([4, 8, 16, 32, 64]),    # Default is 32
-    'hidden_units'             : tune.choice([16, 32, 48, 64, 128]), # Default is 64
+    'kernel_size'              : tune.uniform(3, 7),   # Default is 4
+    'num_hidden_layers'        : tune.uniform(1, 4),   # Default is 2
+    'input_layer_out_channels' : tune.uniform(8, 33),  # Default is 32
+    'hidden_units'             : tune.uniform(16, 65), # Default is 64
 
     # CConv operation parameters
-    'intermediate_activation_fn'        : tune.choice(['ReLU', 'Tanh', 'GeLU', 'Leaky_ReLU']),                                # Default is ReLU; Alternives     : 'tanh',             'sigmoid', 'leaky_relu', 'GeLU'
-    'interpolation'                     : tune.choice(['linear', 'nearest_neighbor']),                                        # Default is linear; Alternatives : 'nearest_neighbor', 'linear_border'
-    'window_function'                   : tune.choice(['None', 'poly6', 'gaussian']),                                         # Default is poly6; Alternatives  : 'gaussian',         'cubic_spline'
-    'coordinate_mapping'                : tune.choice(['ball_to_cube_volume_preserving', 'ball_to_cube_radial', 'identity']), # Default is ball_to_cube_volume_preserving
-    'filter_extent'                     : tune.loguniform(0.025 * 3 * 1.0, 0.2),                                             # Default is 0.025 * 6 * 1.5 = 0.225
-    'radius_search_ignore_query_points' : tune.choice([True, False]),                                                         # Default is False
-    'use_dense_layer_for_centers'       : tune.choice([True, False]),                                                         # Default is False
+    'intermediate_activation_fn'        : 'ReLU',                   # Default is ReLU; Alternives     : 'tanh',             'sigmoid', 'leaky_relu', 'GeLU'
+    'interpolation'                     : 'linear',                 # Default is linear; Alternatives : 'nearest_neighbor', 'linear_border'
+    'window_function'                   : 'None',                   # Default is poly6; Alternatives  : 'gaussian',         'cubic_spline'
+    'coordinate_mapping'                : 'identity',               # Default is ball_to_cube_volume_preserving
+    'filter_extent'                     : tune.uniform(0.12, 0.25), # Default is 0.025 * 6 * 1.5 = 0.225
+    'radius_search_ignore_query_points' : False,                    # Default is False
+    'use_dense_layer_for_centers'       : True,                     # Default is False
 
     # Static parameters -----------------------------------------
     'out_units'     : 1,     # 1 for temporal density gradient, 3 for spatial density gradient
@@ -57,15 +58,15 @@ hparams = {
     'normalize'     : False, # Default is False
 
     # Dataset
-    'dataset_dir' : 'datasets/data/dpi_dam_break/train',
+    'dataset_dir' : 'datasets/data/dam_break_preprocessed/train',
     'data_split'  : (0.7, 0.15, 0.15),
     'shuffle'     : True,
     'cache'       : False,         # Preprocess and preload dataset into memory (GPU memory if cuda)
     'device'      : 'cuda',
 
     # Training
-    'limit_train_batches' : 0.1,  # Use only 10% of the training data per epoch; default is 1.0
-    'limit_val_batches'   : 0.1,  # Use only 10% of the validation data per epoch; default is 1.0
+    'limit_train_batches' : 1000,  # Use only 10% of the training data per epoch; default is 1.0
+    'limit_val_batches'   : 250,  # Use only 10% of the validation data per epoch; default is 1.0
 }
 
 # TODO: write Tune log into ram disk
@@ -113,7 +114,7 @@ lightning_trainer = LightningTrainer(
     scaling_config = ScalingConfig(
         num_workers          = 1,
         use_gpu              = True,
-        resources_per_worker = {'CPU': 1, 'GPU': 1./3}
+        resources_per_worker = {'CPU': 1, 'GPU': 1. / 3}
     ),
     run_config = RunConfig(
         checkpoint_config = CheckpointConfig(
@@ -125,27 +126,28 @@ lightning_trainer = LightningTrainer(
 )
 
 def tune_models(num_samples=100, num_epochs=25):
-    scheduler = ASHAScheduler(max_t=num_epochs, grace_period=2, reduction_factor=2)
+    scheduler = ASHAScheduler(max_t=num_epochs, grace_period=5, reduction_factor=2, time_attr='training_iteration')
 
     # Todo: search algorithm (the standard is either hyperopt, grid or random search)
     # https://docs.ray.io/en/latest/tune/api/suggestion.html
-
+    bayesopt = BayesOptSearch(metric="val_loss", mode="min", random_search_steps=10, patience=7)
     tuner = tune.Tuner(
         lightning_trainer,
         param_space = {
             'lightning_config': lightning_config,
             },
         tune_config = tune.TuneConfig(
-            metric      = 'val_loss',
-            mode        = 'min',
-            num_samples = num_samples,
-            scheduler   = scheduler,
+            search_alg   = bayesopt,
+            metric       = 'val_loss',
+            mode         = 'min',
+            num_samples  = num_samples,
+            # scheduler    = scheduler,
         )
     )
 
     results = tuner.fit()
     best_result = results.get_best_result(metric='val_loss', mode='min')
-    best_result
+    print("Best result:", best_result)
 
 print('Cuda is available:', torch.cuda.is_available())
 

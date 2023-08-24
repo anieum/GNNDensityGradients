@@ -20,7 +20,7 @@ class ToSample(object):
 
     def __call__(self, raw_sample):
         sample = {}
-        ignore_keys = ['num_rigid_bodies', 'frame_id', 'scene_id']
+        ignore_keys = ['num_rigid_bodies', 'scene_id'] # 'frame_id',
         for key in raw_sample.keys():
             if key in ignore_keys:
                 continue
@@ -31,7 +31,7 @@ class ToSample(object):
                 sample[key] = torch.tensor(sample[key], dtype=torch.float32, device=self.device)
 
             # if last dimension is not 1 or 3, add it
-            if sample[key].shape[-1] != 1 and sample[key].shape[-1] != 3:
+            if key != 'frame_id' and sample[key].shape[-1] != 1 and sample[key].shape[-1] != 3:
                 sample[key] = sample[key].view(-1, 1)
 
         if (sample['m'] == 0).all():
