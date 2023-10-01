@@ -166,6 +166,7 @@ def forward_random_sample(model, dataset):
     """
     idx = np.random.randint(0, len(dataset))
     random_sample = dataset.__getitem__(idx).copy()
+    print("Random sample idx:", idx)
 
     # Move sample to correct device, remove batch dimension and move to cpu for plotly
     transform_sample(random_sample, lambda x: x.clone().to(model.device))
