@@ -160,11 +160,15 @@ def transform_batch(batch, transform):
     return batch
 
 
-def forward_random_sample(model, dataset):
+def forward_random_sample(model, dataset, sample_idx = None):
     """
     Returns a random sample from the dataset.
     """
-    idx = np.random.randint(0, len(dataset))
+    
+    idx = sample_idx
+    if idx is None:
+        idx = np.random.randint(0, len(dataset))
+
     random_sample = dataset.__getitem__(idx).copy()
     print("Random sample idx:", idx)
 
@@ -183,9 +187,10 @@ def visualize_model_fig(model,
                     title = None,
                     subplot_titles = ('Densities',  'Target density grad', 'Predicted density grad'),
                     width = 1000,
-                    height = 450):
+                    height = 450,
+                    sample_idx = None):
     # Pick a random sample in the dataset and visualize it
-    random_sample, result = forward_random_sample(model, dataset)
+    random_sample, result = forward_random_sample(model, dataset, sample_idx)
     if result.shape[-1] == 3:
             raise Exception("Model output has 3 channels. This is not supported.")
 
