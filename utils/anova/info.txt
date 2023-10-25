@@ -1,1 +1,0 @@
-These are the losses per validation epoch for the ANOVA test.

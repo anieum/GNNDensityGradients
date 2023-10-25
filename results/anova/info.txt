@@ -1,1 +1,0 @@
-The anova data is in utils/anova. I didn't move it in case you want to reconstruct the figures using the jupyter notebooks.
