@@ -4,7 +4,9 @@ Networks
 ===
 #### Author: Jakob Semmler
 
-This repository contains the code used to train the models for my bachelor's thesis. It also contains notebooks, result data, figures, and other code generated for the thesis.
+This repository contains the code used to train the models for my bachelor's thesis. It also contains notebooks, result data, figures, and other code generated for the thesis. Plotly output is not visible when viewing the notebooks on Github.
+
+
 
 ## Requirements
 
