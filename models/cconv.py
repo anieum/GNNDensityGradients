@@ -216,10 +216,7 @@ class CConvModel(pl.LightningModule):
 
 
     def configure_optimizers(self):
-        # todo: configure scheduler
         optimizer = Adam(self.parameters(), lr=self.learning_rate)
-        #scheduler = ReduceLROnPlateau(optimizer, ...)
-        #return [optimizer], [scheduler]
         return optimizer
 
     def _calculate_batch_loss(self, batch):
