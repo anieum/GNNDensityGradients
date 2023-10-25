@@ -16,13 +16,6 @@ from ray.tune.search.bayesopt import BayesOptSearch
 import torch.cuda
 
 
-# If this option is true, training will be resumed, if an old training run was not finished.
-# This is determined by the existence of a .lock file in the log directory.
-CONTINUE_CRASHED_RUN = True
-
-if not CONTINUE_CRASHED_RUN:
-    unlock_training()
-
 
 hparams = {
     # Search parameters
@@ -83,7 +76,7 @@ logger = TensorBoardLogger('logs', name='srch', version='.')
 # DO NOT CACHE THE DATAMODULE IF IT IS PASSED DIRECTLY WITHOUT LOADERS.
 # OTHERWISE RAY TUNE WILL SERIALIZE THE ENTIRE DATASET AND BLOW UP MEMORY AND DISK SPACE
 datamodule.setup('fit')
-# datamodule.to('cpu')  # this potentially causes the datamodule to be serialized and sent to the workers, instead of the loaders
+# datamodule.to('cpu') # this potentially causes the datamodule to be serialized and sent to the workers, instead of the loaders
 torch.cuda.empty_cache()
 
 train_loader = datamodule.train_dataloader()
@@ -130,18 +123,18 @@ def tune_models(num_samples=100, num_epochs=25):
 
     # Todo: search algorithm (the standard is either hyperopt, grid or random search)
     # https://docs.ray.io/en/latest/tune/api/suggestion.html
-    bayesopt = BayesOptSearch(metric="val_loss", mode="min", random_search_steps=10, patience=7)
+    # bayesopt = BayesOptSearch(metric="val_loss", mode="min", random_search_steps=10, patience=7)
     tuner = tune.Tuner(
         lightning_trainer,
         param_space = {
             'lightning_config': lightning_config,
             },
         tune_config = tune.TuneConfig(
-            search_alg   = bayesopt,
+            # search_alg   = bayesopt,
             metric       = 'val_loss',
             mode         = 'min',
             num_samples  = num_samples,
-            # scheduler    = scheduler,
+            scheduler    = scheduler,
         )
     )
 
@@ -150,18 +143,10 @@ def tune_models(num_samples=100, num_epochs=25):
     print("Best result:", best_result)
 
 print('Cuda is available:', torch.cuda.is_available())
-
-if not has_finished_training() and CONTINUE_CRASHED_RUN:
-    latest_run = get_last_training_run()
-    print('Restoring training from', latest_run)
-
-    tuner = tune.Tuner.restore(
-        path      = latest_run,
-        trainable = lightning_trainer
-    )
-    tuner.fit()
-else:
-    lock_training()
-    tune_models(num_samples=hparams['num_samples'], num_epochs=hparams['num_epochs'])
-
-unlock_training()
+tune_models(num_samples=hparams['num_samples'], num_epochs=hparams['num_epochs'])
+ 
+tuner = tune.Tuner.restore(
+    path      = "~/ray_results/LightningTrainer_2023-07-24_14-31-12",
+    trainable = lightning_trainer
+)
+tuner.fit()
