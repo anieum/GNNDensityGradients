@@ -145,8 +145,8 @@ def tune_models(num_samples=100, num_epochs=25):
 print('Cuda is available:', torch.cuda.is_available())
 tune_models(num_samples=hparams['num_samples'], num_epochs=hparams['num_epochs'])
  
-tuner = tune.Tuner.restore(
-    path      = "~/ray_results/LightningTrainer_2023-07-24_14-31-12",
-    trainable = lightning_trainer
-)
-tuner.fit()
+# tuner = tune.Tuner.restore(
+#     path      = "~/ray_results/LightningTrainer_2023-07-24_14-31-12",
+#     trainable = lightning_trainer
+# )
+# tuner.fit()
