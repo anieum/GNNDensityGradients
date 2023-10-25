@@ -1,0 +1,59 @@
+{
+  "lightning_config": {
+    "_model_checkpoint_config": {
+      "mode": "min",
+      "monitor": "val_loss",
+      "save_top_k": 1
+    },
+    "_module_class": "<class 'models.cconv.CConvModel'>",
+    "_module_init_config": {
+      "hparams": {
+        "align_corners": true,
+        "batch_size": 2,
+        "cache": false,
+        "coordinate_mapping": "identity",
+        "data_split": [
+          0.7,
+          0.15,
+          0.15
+        ],
+        "dataset_dir": "datasets/data/dam_break_preprocessed/train",
+        "device": "cuda",
+        "filter_extent": 0.15709785666787787,
+        "hidden_units": 43.94966970671585,
+        "input_layer_out_channels": 26.547638230421327,
+        "intermediate_activation_fn": "ReLU",
+        "interpolation": "linear",
+        "kernel_size": 6.652753932032602,
+        "learning_rate": 0.000660038750482854,
+        "limit_train_batches": 1000,
+        "limit_val_batches": 250,
+        "normalize": false,
+        "num_epochs": 6,
+        "num_hidden_layers": 3.1208396721978398,
+        "num_samples": 100,
+        "out_units": 1,
+        "radius_search_ignore_query_points": false,
+        "shuffle": true,
+        "use_dense_layer_for_centers": true,
+        "window_function": "None"
+      }
+    },
+    "_strategy_config": {},
+    "_trainer_fit_params": {
+      "train_dataloaders": "<torch.utils.data.dataloader.DataLoader object at 0x7fbca8726920>",
+      "val_dataloaders": "<torch.utils.data.dataloader.DataLoader object at 0x7fbca8726950>"
+    },
+    "_trainer_init_config": {
+      "accelerator": "gpu",
+      "callbacks": [
+        "<utils.callbacks.LogParametersCallback object at 0x7fbca87268c0>"
+      ],
+      "enable_progress_bar": false,
+      "limit_train_batches": 1000,
+      "limit_val_batches": 250,
+      "logger": "<pytorch_lightning.loggers.tensorboard.TensorBoardLogger object at 0x7fbca87267a0>",
+      "max_epochs": 6
+    }
+  }
+}
